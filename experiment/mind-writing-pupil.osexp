@@ -1,33 +1,43 @@
 ---
 API: 2
-OpenSesame: 3.0.6a1
-Platform: posix
+OpenSesame: 3.1.6
+Platform: nt
 ---
 set width 1280
-set uniform_coordinates "yes"
-set transparent_variables "no"
+set uniform_coordinates yes
+set transparent_variables no
 set title "Attend-and-click training"
-set synth_backend "legacy"
-set subject_parity "even"
+set synth_backend legacy
+set subject_parity even
 set subject_nr 0
-set start "experiment"
-set sampler_backend "legacy"
-set mouse_backend "psycho"
-set keyboard_backend "psycho"
+set start experiment
+set sound_sample_size -16
+set sound_freq 48000
+set sound_channels 2
+set sound_buf_size 1024
+set sampler_backend legacy
+set round_decimals 2
+set psychopy_screen 1
+set mouse_backend psycho
+set keyboard_backend psycho
 set height 1024
-set foreground "white"
+set fullscreen no
+set form_clicks no
+set foreground white
+set font_underline no
 set font_size 18
-set font_italic "no"
-set font_family "mono"
-set font_bold "no"
-set experiment_path "/home/sebastiaan/Documents/Research/Projects/P0015 [PLR BCI]/P0015.1 [PLR BCI pilot]/experiment"
+set font_italic no
+set font_family mono
+set font_bold no
+set experiment_path "E:/Pupil BCI/mind-writing-pupil-master/experiment"
+set disable_garbage_collection yes
 set description "A brain-computer interface based on covert attention and pupillometry"
-set coordinates "relative"
+set coordinates relative
 set compensation 0
-set color_backend "psycho"
-set clock_backend "psycho"
-set canvas_backend "psycho"
-set bidi "no"
+set color_backend psycho
+set clock_backend psycho
+set canvas_backend psycho
+set bidi no
 set background "#4c4c4c"
 
 define notepad README
@@ -46,7 +56,7 @@ define pygaze_start_recording _pygaze_start_recording
 	set description "Puts the eye tracker into recording mode"
 
 define sketchpad blank
-	set reset_variables "no"
+	set reset_variables no
 	set duration 0
 	set description "Displays stimuli"
 
@@ -61,37 +71,40 @@ define inline_script default_settings
 	__end__
 
 define loop eight_options
+	set source_file ""
+	set source table
 	set skip 0
 	set repeat 2
-	set order "random"
-	set offset "no"
-	set item "exp_sequence"
+	set order random
+	set offset no
+	set item exp_sequence
 	set description "Repeatedly runs another item"
 	set cycles 8
+	set continuous no
 	set column_order "target;itemIds"
-	set break_if "never"
-	setcycle 0 target "A"
-	setcycle 0 itemIds "ABCDEFGH"
-	setcycle 1 target "B"
-	setcycle 1 itemIds "ABCDEFGH"
-	setcycle 2 target "C"
-	setcycle 2 itemIds "ABCDEFGH"
-	setcycle 3 target "D"
-	setcycle 3 itemIds "ABCDEFGH"
-	setcycle 4 target "E"
-	setcycle 4 itemIds "ABCDEFGH"
-	setcycle 5 target "F"
-	setcycle 5 itemIds "ABCDEFGH"
-	setcycle 6 target "G"
-	setcycle 6 itemIds "ABCDEFGH"
-	setcycle 7 target "H"
-	setcycle 7 itemIds "ABCDEFGH"
+	set break_if_on_first yes
+	set break_if never
+	setcycle 0 target A
+	setcycle 0 itemIds ABCDEFGH
+	setcycle 1 target B
+	setcycle 1 itemIds ABCDEFGH
+	setcycle 2 target C
+	setcycle 2 itemIds ABCDEFGH
+	setcycle 3 target D
+	setcycle 3 itemIds ABCDEFGH
+	setcycle 4 target E
+	setcycle 4 itemIds ABCDEFGH
+	setcycle 5 target F
+	setcycle 5 itemIds ABCDEFGH
+	setcycle 6 target G
+	setcycle 6 itemIds ABCDEFGH
+	setcycle 7 target H
+	setcycle 7 itemIds ABCDEFGH
 	run exp_sequence
 
 define sequence exp_sequence
-	set flush_keyboard "yes"
+	set flush_keyboard yes
 	set description "Runs a number of items in sequence"
-	run pygaze_drift_correct always
 	run pygaze_start_recording always
 	run speak_target always
 	run sketchpad always
@@ -103,7 +116,7 @@ define sequence exp_sequence
 	run pygaze_stop_recording always
 
 define sequence experiment
-	set flush_keyboard "yes"
+	set flush_keyboard yes
 	set description "Runs a number of items in sequence"
 	run README always
 	run pygaze_init always
@@ -146,11 +159,16 @@ define inline_script eye_tracker
 			itemArray.show()
 			if pylink != None:
 				ps = eyetracker.pupil_size()
+				if ps == 0:
+					ps = np.nan
 			else:
 				# Use Y coordinate of mouse
 				ps = my_mouse.get_pos()[0][1]+var.height/2
 			dt = self.time()-t0
 			a[int(_dt/fd):int(dt/fd)] = ps
+			#print "Current pupil size: %s" % a[int(_dt/fd):int(dt/fd)]
+			#print "Previous pupil size: %s" % a[int(_dt/fd) - 1:int(dt/fd)]
+	
 			_dt = dt
 			if my_keyboard.get_key()[0] == 'space':
 				say(var.target)
@@ -159,27 +177,27 @@ define inline_script eye_tracker
 	set _prepare ""
 
 define feedback feedback
-	set reset_variables "no"
-	set duration "keypress"
+	set reset_variables no
+	set duration keypress
 	set description "Provides feedback to the participant"
 	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="<b>End of selection</b><br /><br />Correct: [correct_selection]<br />Nr. of rounds: [rounds]<br />Duration: [loop_rt] s<br /><br />Press a key to continue ..." x=0 y=0 z_index=0
 
 define feedback final_feedback
-	set reset_variables "yes"
+	set reset_variables yes
 	set duration 0
 	set description "Provides feedback to the participant"
 	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="<b>Fin du bloc</b><br /><br />Précision: [acc] %<br />Temps de réponse moyenne: [avg_rt] s<br /><br />Vuillez appeler l'experimentateur" x=0 y=0 z_index=0
 	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=always text="Appuyez 'q' pour quitter." x=0 y=448 z_index=0
 
 define form_base form_base
-	set timeout "infinite"
+	set timeout infinite
 	set spacing 10
 	set rows "2;3;3;1;1"
-	set only_render "no"
+	set only_render no
 	set margins "50;50;50;50"
 	set description "A generic form plug-in"
 	set cols "1;1"
-	set _theme "gray"
+	set _theme gray
 	widget 0 0 2 1 image path="getyourmindwrite.png"
 	widget 0 1 1 1 image_button path="2afc.png" var=opt2
 	widget 1 1 1 1 image_button path="4afc.png" var=opt4
@@ -192,29 +210,32 @@ define form_base form_base
 
 
 define loop four_options
+	set source_file ""
+	set source table
 	set skip 0
 	set repeat 4
-	set order "random"
-	set offset "no"
-	set item "exp_sequence"
+	set order random
+	set offset no
+	set item exp_sequence
 	set description "Repeatedly runs another item"
 	set cycles 4
+	set continuous no
 	set column_order "target;itemIds"
-	set break_if "never"
-	setcycle 0 target "A"
-	setcycle 0 itemIds "ABCD"
-	setcycle 1 target "B"
-	setcycle 1 itemIds "ABCD"
-	setcycle 2 target "C"
-	setcycle 2 itemIds "ABCD"
-	setcycle 3 target "D"
-	setcycle 3 itemIds "ABCD"
+	set break_if_on_first yes
+	set break_if never
+	setcycle 0 target A
+	setcycle 0 itemIds ABCD
+	setcycle 1 target B
+	setcycle 1 itemIds ABCD
+	setcycle 2 target C
+	setcycle 2 itemIds ABCD
+	setcycle 3 target D
+	setcycle 3 itemIds ABCD
 	run exp_sequence
 
 define sequence free_writing
-	set flush_keyboard "yes"
+	set flush_keyboard yes
 	set description "Runs a number of items in sequence"
-	run pygaze_drift_correct always
 	run _pygaze_start_recording always
 	run free_writing_script always
 	run free_writing_feedback always
@@ -223,22 +244,27 @@ define sequence free_writing
 	run pygaze_stop_recording always
 
 define feedback free_writing_feedback
-	set reset_variables "no"
-	set duration "keypress"
+	set reset_variables no
+	set duration keypress
 	set description "Provides feedback to the participant"
 	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="You wrote:<br /><br />[free_writing_text]<br />" x=0 y=0 z_index=0
 	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=always text="Appuyez sur 'q' pour quitter." x=0 y=448 z_index=0
 
 define loop free_writing_loop
+	set source_file ""
+	set source table
 	set skip 0
 	set repeat 1
-	set order "random"
-	set offset "no"
-	set item "free_writing"
+	set order random
+	set offset no
+	set item free_writing
 	set description "Repeatedly runs another item"
 	set cycles 1
+	set continuous no
 	set column_order ""
-	set break_if "never"
+	set break_if_on_first yes
+	set break_if never
+	setcycle 0 empty_column ""
 	run free_writing
 
 define inline_script free_writing_script
@@ -428,6 +454,7 @@ define inline_script item
 				size=(128,2))
 			self.lPrediction = []
 			self.lPupilSize = []
+			self.lPupilSizeChange = [] # Used by some adaptive threshold algorithms.
 			self.setAngle(angle)
 										
 		def likelihood(self):
@@ -490,9 +517,11 @@ define inline_script item
 			"""
 			
 			self.lPrediction.append(self.brightness)
-			self.lPupilSize.append(pupilSize)
+			if not np.isnan(pupilSize):
+				self.lPupilSize.append(pupilSize)
 			if len(self.lPupilSize) > 1:
 				pupilSizeChange = 1. * self.lPupilSize[-1] / self.lPupilSize[-2]
+				self.lPupilSizeChange.append(pupilSizeChange) 
 				if self.lPrediction[-1] == 1 and self.lPrediction[-2] == -1:
 					likelihood = self.lLikelihood[-1] / pupilSizeChange
 				elif self.lPrediction[-1] == -1 and self.lPrediction[-2] == 1:
@@ -500,7 +529,7 @@ define inline_script item
 				else:
 					likelihood = self.lLikelihood[-1]
 				self.lLikelihood.append(likelihood)
-				
+	
 		def setXY(self, xy):
 			
 			"""
@@ -709,7 +738,7 @@ define inline_script itemArray
 				The mean likelihood of all items.
 			"""
 			
-			return np.mean([item.likelihood() for item in self.items])
+			return np.nanmean([item.likelihood() for item in self.items])
 			
 		def invert(self, dur=500):
 			
@@ -730,7 +759,7 @@ define inline_script itemArray
 				for item in self.items:
 					item.setBrightness(oldBrightness[n] * f[i])
 					n += 1
-				print 'i = %s' % i
+				#print 'i = %s' % i
 				self.show()
 				t1 = exp.time()
 				i = int(t1-t0)
@@ -791,7 +820,7 @@ define inline_script itemArray
 				self.items[1].showMirror = True
 				
 		def selectionLoop(self, initialSleep=1000, invertSteps=500, adaptDur=500,
-			collectDur=250, target=None, mode2='180', likelihoodThr=2,
+			collectDur=250, target=None, mode2='180', likelihoodThr=2.0,
 			cue=None):
 			
 			"""
@@ -847,6 +876,55 @@ define inline_script itemArray
 					item.setPupilSize(meanPupilSize)				
 				_items = []
 				prune = False
+				
+				''' ADAPTIVE THRESHOLDING ALGORITHMS '''
+				
+	#			# Adaptive thresholding: minmax optimization
+	#			try:
+	#				pupilSizeDifference =  abs(item.lPupilSizeChange[-2] - item.lPupilSizeChange[-1])
+	#				print 'Pupil size difference: %s' % pupilSizeDifference
+	#				if pupilSizeDifference >= 0.1:
+	#					likelihoodThr *= 0.75
+	#					print 'Threshold decreased! New value is: %s' % likelihoodThr
+	#				elif pupilSizeDifference <= 0.025:
+	#					likelihoodThr /= 0.75
+	#					print 'Threshold increased! New value is: %s' % likelihoodThr
+	#				else:
+	#					print 'Threshold mantained! Current value: %s' % likelihoodThr
+	#			except (ValueError, IndexError) as errors:  
+	#				pass
+					
+				# Adaptive thresholding: variability of pupil size changes
+				#!!! WARNING: MAY CAUSE AN INDEXERROR AT THE END OF THE SELECTION LOOP!!!
+				
+	#			if len(item.lPupilSizeChange) > 3: # Arbitrary
+	#				print item.lPupilSizeChange
+	#				if np.std(item.lPupilSizeChange) >= np.mean(item.lPupilSizeChange)**2:
+	#					likelihoodThr /= 0.75
+	#					print 'Too much variance, threshold reduced: %s' % likelihoodThr 
+	#				elif np.std(item.lPupilSizeChange) <= np.sqrt(np.mean(item.lPupilSizeChange)):
+	#					likelihoodThr *= 0.75
+	#					print 'Too little variance, threshold increased: %s' % likelihoodThr
+	#				else:
+	#					print 'Variance within margins. Threshold unchanged: %s' % likelihoodThr
+	#			
+	
+				# Adaptive thresholding: staircase based on consistency:
+				# WARNING: MAY CAUSE INDEXERROR FURTHER BELOW
+				
+				if len(item.lPupilSize) >= 4:
+					if (item.lPupilSize[-4] > item.lPupilSize[-3] and item.lPupilSize[-3] < item.lPupilSize[-2] and item.lPupilSize[-2] > item.lPupilSize[-1]) or (item.lPupilSize[-4] < item.lPupilSize[-3] and item.lPupilSize[-3] > item.lPupilSize[-2] and item.lPupilSize[-2] < item.lPupilSize[-1]): # This needs some obvious optimization...
+						print 'Input is consistent! Reducing threshold!'
+						likelihoodThr -= .5
+					else:
+						print 'Input is not consistent! Increasing threshold!'
+						likelihoodThr += .5
+					if likelihoodThr <= .5:
+						likelihoodThr *= 0.1
+					print 'Threshold is now at %s' % likelihoodThr
+						
+	# ---- END OF ADAPTIVE THRESHOLDS -----
+							
 				for item in self.items:
 					if item.likelihood()*likelihoodThr >= self.meanLikelihood():
 						item.log(status='keep')
@@ -903,56 +981,56 @@ define inline_script itemArray
 	set _prepare ""
 
 define keyboard_response keyboard_response
-	set timeout "infinite"
-	set flush "yes"
-	set duration "keypress"
+	set timeout infinite
+	set flush yes
+	set duration keypress
 	set description "Collects keyboard responses"
-	set allowed_responses "q"
+	set allowed_responses q
 
 define logger logger
 	set description "Logs experimental data"
-	set auto_log "yes"
+	set auto_log yes
 
 define pygaze_drift_correct pygaze_drift_correct
 	set ypos 0
 	set xpos 0
-	set target_style "default"
+	set target_style default
 	set target_color "[foreground]"
-	set fixation_triggered "yes"
-	set draw_target "yes"
+	set fixation_triggered yes
+	set draw_target yes
 	set description "Perform eye-tracker drift correction"
 
 define pygaze_init pygaze_init
-	set tracker_type "Advanced dummy (mouse simulation)"
+	set tracker_type EyeTribe
 	set smi_send_port 4444
 	set smi_recv_port 5555
 	set smi_ip "127.0.0.1"
 	set sacc_vel_thr 35
 	set sacc_acc_thr 9500
-	set eyelink_pupil_size_mode "area"
-	set eyelink_force_drift_correct "yes"
-	set eyelink_calbeep "yes"
+	set eyelink_pupil_size_mode area
+	set eyelink_force_drift_correct yes
+	set eyelink_calbeep yes
 	set description "Initialize and calibrate eye tracker"
-	set calibrate "yes"
-	set calbeep "yes"
-	set _logfile "automatic"
+	set calibrate yes
+	set calbeep yes
+	set _logfile automatic
 
 define pygaze_log pygaze_log
 	set throttle 2
 	set msg ""
 	set description "Writes information to the eye-tracker logfile"
-	set auto_log "yes"
+	set auto_log yes
 
 define pygaze_start_recording pygaze_start_recording
 	set status_msg "start_trial [count_exp_sequence]"
 	set description "Puts the eye tracker into recording mode"
 
 define pygaze_stop_recording pygaze_stop_recording
-	set status_msg "stop_trial"
+	set status_msg stop_trial
 	set description "Stops recording of eye tracking data"
 
 define sequence python_definitions
-	set flush_keyboard "yes"
+	set flush_keyboard yes
 	set description "Runs a number of items in sequence"
 	run default_settings always
 	run globals always
@@ -1003,8 +1081,8 @@ define inline_script select_target
 	set _prepare ""
 
 define sketchpad sketchpad
-	set reset_variables "no"
-	set duration "keypress"
+	set reset_variables no
+	set duration keypress
 	set description "Displays stimuli"
 	draw textline center=1 color=green font_bold=no font_family=mono font_italic=no font_size=32 html=yes show_if=always text=Select x=0 y=-288 z_index=0
 	draw textline center=1 color=green font_bold=no font_family=mono font_italic=no font_size=32 html=yes show_if=always text="Press a key to continue" x=0 y=320 z_index=0
@@ -1081,22 +1159,26 @@ define inline_script speech
 	set _prepare ""
 
 define loop two_options
+	set source_file ""
+	set source table
 	set skip 0
 	set repeat 4
-	set order "random"
-	set offset "no"
-	set item "exp_sequence"
+	set order random
+	set offset no
+	set item exp_sequence
 	set description "Repeatedly runs another item"
 	set cycles 4
+	set continuous no
 	set column_order "target;itemIds"
-	set break_if "never"
-	setcycle 0 target "A"
-	setcycle 0 itemIds "AB"
-	setcycle 1 target "A"
-	setcycle 1 itemIds "BA"
-	setcycle 2 target "B"
-	setcycle 2 itemIds "AB"
-	setcycle 3 target "B"
-	setcycle 3 itemIds "BA"
+	set break_if_on_first yes
+	set break_if never
+	setcycle 0 target A
+	setcycle 0 itemIds AB
+	setcycle 1 target A
+	setcycle 1 itemIds BA
+	setcycle 2 target B
+	setcycle 2 itemIds AB
+	setcycle 3 target B
+	setcycle 3 itemIds BA
 	run exp_sequence
 
