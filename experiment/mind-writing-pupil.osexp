@@ -820,7 +820,7 @@ define inline_script itemArray
 				self.items[0].showMirror = True
 				self.items[1].showMirror = True
 				
-		def thresholdMultiplier(self, thresholdValue, option = 1):
+		def thresholdMultiplier(self, thresholdValue, option = 3):
 			"""
 			Gets one of the adaptive algorithms and retuns the new threshold value. 
 			"""
@@ -830,10 +830,10 @@ define inline_script itemArray
 				return self.minMaxThr(thresholdValue)
 			elif option == 2:
 				print('Selected second algorithm')
-				return 1
+				return self.varianceThr(thresholdValue)
 			else:
 				print('Selected third algorithm')
-				return 1
+				return self.consistencyThr(thresholdValue)
 		def minMaxThr(self, thresholdValue):
 			
 			"""
@@ -841,19 +841,61 @@ define inline_script itemArray
 			last pupil sizes.
 			"""
 			
-			if len(item.lPupilSizeChange) > 2:
-				pupilSizeDifference =  abs(item.lPupilSizeChange[-2] - item.lPupilSizeChange[-1])
+			if len(self.lPupilSizeChange) > 2:
+				pupilSizeDifference =  abs(self.lPupilSizeChange[-2] - self.lPupilSizeChange[-1])
 				print('Pupil size difference: %s') % pupilSizeDifference
 				if pupilSizeDifference >= 0.1:
-					thresholdValue *= 0.75
+					thresholdValue *= 0.9
 					print('Threshold decreased! New value is: %s') % thresholdValue
 				elif pupilSizeDifference <= 0.025:
-					thresholdValue /= 0.75
+					thresholdValue /= 0.9
 					print('Threshold increased! New value is: %s') % thresholdValue
 				else:
 					print('Threshold mantained! Current value: %s') % thresholdValue
 			
 			if thresholdValue >= 1:
+				return thresholdValue
+			else:
+				return 1
+				
+		def varianceThr(self, thresholdValue):
+					
+			"""
+			Calculates a new threshold value based on the variance of the pupil
+			size changes.
+			
+			If there is too much variance, the threshold level will be lowered.
+			
+			If the data is consistent, the threshold level will be increased.
+			"""
+				
+			if len(self.lPupilSizeChange) > 3: # Arbitrary
+				if np.std(self.lPupilSizeChange) >= np.mean(self.lPupilSizeChange)**2:
+					thresholdValue /= 0.75
+					print('Too much variance, threshold reduced: %s') % thresholdValue 
+				elif np.std(self.lPupilSizeChange) <= np.sqrt(np.mean(self.lPupilSizeChange)):
+					thresholdValue *= 0.75
+					print('Too little variance, threshold increased: %s') % thresholdValue
+				else:
+					print('Variance within margins. Threshold unchanged: %s') % thresholdValue
+					
+			if thresholdValue >= 1:
+				return thresholdValue
+			else:
+				return 1
+				
+		def consistencyThr(self, thresholdValue):
+			
+			if len(self.lPupilSizeChange) >= 4:
+				if (self.lPupilSizeChange[-4] > self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] < self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] > self.lPupilSizeChange[-1]) or (self.lPupilSizeChange[-4] < self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] > self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] < self.lPupilSizeChange[-1]): # This needs some obvious optimization...
+					print('Input is consistent! Reducing threshold!')
+					thresholdValue -= .25
+				else:
+					print('Input is not consistent! Increasing threshold!')
+					thresholdValue += .25
+						
+			if thresholdValue >= 1:
+				print('Threshold is now %s') % thresholdValue
 				return thresholdValue
 			else:
 				return 1
@@ -898,6 +940,8 @@ define inline_script itemArray
 			exp.sleep(initialSleep)
 			self.show()
 			collectPupilTrace(self, initialSleep)
+			self.lPupilSizeChange = []
+			
 			while True:				
 				eyetracker.log('start_round %d' % rounds)			
 				eyetracker.log('start_invert')
@@ -910,46 +954,14 @@ define inline_script itemArray
 				a = collectPupilTrace(self, collectDur)
 				eyetracker.log('end_collection')
 				meanPupilSize = np.median(a)
+				self.lPupilSizeChange.append(meanPupilSize)
 				
-				likelihoodThr = self.thresholdMultiplier(likelihoodThr)
+				self.likelihoodThr = self.thresholdMultiplier(likelihoodThr)
 				self.pupilSizeIndicator.setText(str(meanPupilSize))
 				for item in self.items:
 					item.setPupilSize(meanPupilSize)				
 				_items = []
 				prune = False
-				
-	
-					
-				# Adaptive thresholding: variability of pupil size changes
-				#!!! WARNING: MAY CAUSE AN INDEXERROR AT THE END OF THE SELECTION LOOP!!!
-				
-	#			if len(item.lPupilSizeChange) > 3: # Arbitrary
-	#				print item.lPupilSizeChange
-	#				if np.std(item.lPupilSizeChange) >= np.mean(item.lPupilSizeChange)**2:
-	#					likelihoodThr /= 0.75
-	#					print('Too much variance, threshold reduced: %s') % likelihoodThr 
-	#				elif np.std(item.lPupilSizeChange) <= np.sqrt(np.mean(item.lPupilSizeChange)):
-	#					likelihoodThr *= 0.75
-	#					print('Too little variance, threshold increased: %s') % likelihoodThr
-	#				else:
-	#					print('Variance within margins. Threshold unchanged: %s') % likelihoodThr
-	#			
-	
-				# Adaptive thresholding: staircase based on consistency:
-				# WARNING: MAY CAUSE INDEXERROR FURTHER BELOW
-				
-	#			if len(item.lPupilSize) >= 4 or likelihoodThr == 1:
-	#				if (item.lPupilSize[-4] > item.lPupilSize[-3] and item.lPupilSize[-3] < item.lPupilSize[-2] and item.lPupilSize[-2] > item.lPupilSize[-1]) or (item.lPupilSize[-4] < item.lPupilSize[-3] and item.lPupilSize[-3] > item.lPupilSize[-2] and item.lPupilSize[-2] < item.lPupilSize[-1]): # This needs some obvious optimization...
-	#					print('Input is consistent! Reducing threshold!')
-	#					likelihoodThr -= .5
-	#				else:
-	#					print('Input is not consistent! Increasing threshold!')
-	#					likelihoodThr += .5
-	#				if likelihoodThr <= .5:
-	#					likelihoodThr *= 0.1
-	#				print('Threshold is now at %s') % likelihoodThr
-						
-	# ---- END OF ADAPTIVE THRESHOLDS -----
 							
 				for item in self.items:
 					if item.likelihood()*self.likelihoodThr >= self.meanLikelihood():
