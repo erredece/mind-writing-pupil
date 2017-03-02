@@ -109,6 +109,7 @@ define sequence exp_sequence
 	run speak_target always
 	run sketchpad always
 	run select_target always
+	run new_quest_staircase_next_1 always
 	run feedback always
 	run blank always
 	run pygaze_log always
@@ -121,6 +122,7 @@ define sequence experiment
 	run README always
 	run pygaze_init always
 	run form_base always
+	run new_quest_staircase_init always
 	run python_definitions always
 	run two_options "[opt2] = yes"
 	run four_options "[opt4] = yes"
@@ -820,7 +822,7 @@ define inline_script itemArray
 				self.items[0].showMirror = True
 				self.items[1].showMirror = True
 				
-		def thresholdMultiplier(self, thresholdValue, option = 3):
+		def thresholdMultiplier(self, thresholdValue, option = 0):
 			"""
 			Gets one of the adaptive algorithms and retuns the new threshold value. 
 			"""
@@ -831,9 +833,12 @@ define inline_script itemArray
 			elif option == 2:
 				print('Selected second algorithm')
 				return self.varianceThr(thresholdValue)
-			else:
+			elif option == 3:
 				print('Selected third algorithm')
 				return self.consistencyThr(thresholdValue)
+			else:
+				print('No algorithm selected')
+				return 2
 		def minMaxThr(self, thresholdValue):
 			
 			"""
@@ -885,6 +890,14 @@ define inline_script itemArray
 				return 1
 				
 		def consistencyThr(self, thresholdValue):
+			
+			"""
+			Observes if the pupil size changes are consistent.
+			Ie. If the pupil size keeps alternating between dilation and contraction
+			for every reading, the threshold level will be lowered.
+			If, alternatively, these changes are not consistent, the threshold level
+			will be increased.
+			"""
 			
 			if len(self.lPupilSizeChange) >= 4:
 				if (self.lPupilSizeChange[-4] > self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] < self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] > self.lPupilSizeChange[-1]) or (self.lPupilSizeChange[-4] < self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] > self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] < self.lPupilSizeChange[-1]): # This needs some obvious optimization...
@@ -1029,6 +1042,27 @@ define logger logger
 	set description "Logs experimental data"
 	set auto_log yes
 
+define quest_staircase_init new_quest_staircase_init
+	set var_test_value questStaircaseValue
+	set test_value_method quantile
+	set t_guess_sd 0.25
+	set t_guess 0.2
+	set p_threshold 0.75
+	set min_test_value 0
+	set max_test_value 1
+	set gamma 0.5
+	set description "Initializes a new Quest staircase procedure"
+	set delta 0.01
+	set beta 3.5
+
+define quest_staircase_next new_quest_staircase_next
+	set response_var correct
+	set description "Updates the Quest test value based on a response"
+
+define quest_staircase_next new_quest_staircase_next_1
+	set response_var correct_selection
+	set description "Updates the Quest test value based on a response"
+
 define pygaze_drift_correct pygaze_drift_correct
 	set ypos 0
 	set xpos 0
@@ -1082,6 +1116,9 @@ define sequence python_definitions
 define inline_script select_target
 	set description "Executes Python code"
 	___run__
+	var.likelihoodThr = var.questStaircaseValue * 10 + 1
+	print(var.likelihoodThr)
+	
 	if var.showCue == 'yes':
 		cue = var.target
 	else:
