@@ -68,6 +68,20 @@ define inline_script default_settings
 	var.ecc = 390
 	var.size = 132
 	var.showCue = 'no'
+	
+	#Blocking Settings
+	var.practiceMode = 'no'
+	var.blockID = 0
+	var.blockOrder = 0
+	var.blockCounter = 0
+	var.trialCounter = 1
+	var.numberOfTrials = 3
+	print('Trial Counter: %s') % var.trialCounter
+	
+	# Adaptive threshold settings.
+	var.staircase = 'yes'
+	var.trialThreshold = 'yes'
+	var.trialThresholdOption = 1
 	__end__
 
 define loop eight_options
@@ -131,6 +145,26 @@ define sequence experiment
 	run final_feedback "[free_writing] != yes"
 	run keyboard_response always
 
+define inline_script experiment_settings
+	set description "Executes Python code"
+	___run__
+	if var.subject_nr % 4 == 0:
+		var.blockID = 0
+		var.blockOrder = 0
+	elif var.subject % 4 == 1:
+		var.blockID = 1
+		var.blockOrder = 1
+	elif var.subject % 4 == 2:
+		var.blockID = 2
+		var.blockOrder = 2
+	else:
+		var.blockID = 3
+		var.blockOrder = 3
+	
+	print(var.subject_nr % 4)
+	__end__
+	set _prepare ""
+
 define inline_script eye_tracker
 	set description "Eye-tracker functionality"
 	___run__
@@ -192,6 +226,10 @@ define feedback final_feedback
 	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=always text="Appuyez 'q' pour quitter." x=0 y=448 z_index=0
 
 define form_base form_base
+	# widget 0 4 1 1 label text="Threshold/ Seuil"
+	# widget 1 4 1 1 text_input text=1.375 var=likelihoodThr
+	# widget 0 2 1 1 image_button path="8afc.png" var=opt8
+	# widget 1 2 1 1 image_button path="freewriting.png" var=free_writing
 	set timeout infinite
 	set spacing 10
 	set rows "2;3;3;1;1"
@@ -203,12 +241,13 @@ define form_base form_base
 	widget 0 0 2 1 image path="getyourmindwrite.png"
 	widget 0 1 1 1 image_button path="2afc.png" var=opt2
 	widget 1 1 1 1 image_button path="4afc.png" var=opt4
-	widget 0 2 1 1 image_button path="8afc.png" var=opt8
-	widget 1 2 1 1 image_button path="freewriting.png" var=free_writing
-	widget 0 3 1 1 checkbox text="Check fixation / Controle de fixation" var=checkFix
-	widget 1 3 1 1 checkbox text="Gaze stabilization / Stabilisation de regard" var=stabilize
-	widget 0 4 1 1 label text="Threshold/ Seuil"
-	widget 1 4 1 1 text_input text=1.375 var=likelihoodThr
+	widget 2 1 1 1 image_button path="8afc.png" var=opt8
+	widget 0 2 1 1 checkbox text="Check fixation / Controle de fixation" var=checkFix
+	widget 1 2 1 1 checkbox text="Gaze stabilization / Stabilisation de regard" var=stabilize
+	widget 0 3 1 1 checkbox checked=True text="Quest staircase threshold" var=staircase
+	widget 1 3 1 1 checkbox checked=True text="Individual trial threshold" var=trialThreshold
+	widget 0 4 1 1 label text="Select individual trial threshold option:"
+	widget 1 4 1 1 text_input text=1 var=trialThresholdOption
 
 
 define loop four_options
@@ -822,25 +861,28 @@ define inline_script itemArray
 				self.items[0].showMirror = True
 				self.items[1].showMirror = True
 				
-		def thresholdMultiplier(self, thresholdValue, option = 0):
+		def localThreshold(self, thresholdValue = 2):
 			"""
 			Gets one of the adaptive algorithms and retuns the new threshold value. 
 			"""
-			
-			if option == 1: 
-				print('Selected first algorithm')
-				return self.minMaxThr(thresholdValue)
-			elif option == 2:
-				print('Selected second algorithm')
-				return self.varianceThr(thresholdValue)
-			elif option == 3:
-				print('Selected third algorithm')
-				return self.consistencyThr(thresholdValue)
+			if var.trialThreshold != 'no':
+				if var.trialThresholdOption == 1: 
+					print('Selected first algorithm')
+					return self.minMaxThr(thresholdValue)
+				elif var.trialThresholdOption == 2:
+					print('Selected second algorithm')
+					return self.varianceThr(thresholdValue)
+				elif var.trialThresholdOption == 3:
+					print('Selected third algorithm')
+					return self.consistencyThr(thresholdValue)
+				else:
+					print('No algorithm selected')
+					return 2
 			else:
-				print('No algorithm selected')
+				print('No individual threshold selected')
 				return 2
+				
 		def minMaxThr(self, thresholdValue):
-			
 			"""
 			Calculates a new threshold value based on the difference between the 
 			last pupil sizes.
@@ -848,7 +890,6 @@ define inline_script itemArray
 			
 			if len(self.lPupilSizeChange) > 2:
 				pupilSizeDifference =  abs(self.lPupilSizeChange[-2] - self.lPupilSizeChange[-1])
-				print('Pupil size difference: %s') % pupilSizeDifference
 				if pupilSizeDifference >= 0.1:
 					thresholdValue *= 0.9
 					print('Threshold decreased! New value is: %s') % thresholdValue
@@ -858,13 +899,11 @@ define inline_script itemArray
 				else:
 					print('Threshold mantained! Current value: %s') % thresholdValue
 			
-			if thresholdValue >= 1:
-				return thresholdValue
-			else:
-				return 1
+			if thresholdValue <= 1:
+				thresholdValue = 1
+			return thresholdValue
 				
-		def varianceThr(self, thresholdValue):
-					
+		def varianceThr(self, thresholdValue):		
 			"""
 			Calculates a new threshold value based on the variance of the pupil
 			size changes.
@@ -884,10 +923,9 @@ define inline_script itemArray
 				else:
 					print('Variance within margins. Threshold unchanged: %s') % thresholdValue
 					
-			if thresholdValue >= 1:
-				return thresholdValue
-			else:
-				return 1
+			if thresholdValue <= 1:
+				thresholdValue = 1
+			return thresholdValue
 				
 		def consistencyThr(self, thresholdValue):
 			
@@ -906,12 +944,10 @@ define inline_script itemArray
 				else:
 					print('Input is not consistent! Increasing threshold!')
 					thresholdValue += .25
-						
-			if thresholdValue >= 1:
-				print('Threshold is now %s') % thresholdValue
-				return thresholdValue
-			else:
-				return 1
+			if thresholdValue <= 1:
+				thresholdValue = 1
+			print('Threshold is now %s') % thresholdValue
+			return thresholdValue	
 		
 		def selectionLoop(self, initialSleep=1000, invertSteps=500, adaptDur=500,
 			collectDur=250, target=None, mode2='180', likelihoodThr = 2.0,
@@ -969,7 +1005,7 @@ define inline_script itemArray
 				meanPupilSize = np.median(a)
 				self.lPupilSizeChange.append(meanPupilSize)
 				
-				self.likelihoodThr = self.thresholdMultiplier(likelihoodThr)
+				self.likelihoodThr = self.localThreshold(likelihoodThr)
 				self.pupilSizeIndicator.setText(str(meanPupilSize))
 				for item in self.items:
 					item.setPupilSize(meanPupilSize)				
@@ -1027,6 +1063,19 @@ define inline_script itemArray
 						exp.set('correct_selection', 0)
 			eyetracker.log('var rounds %d' % rounds)
 			eyetracker.log('end_selection_loop')
+			if var.practiceMode != 'yes':
+				if var.trialCounter < var.numberOfTrials:
+					print('Trial number: %s') % var.trialCounter
+					var.trialCounter += 1
+				else:
+					var.trialCounter = 1
+					print('Trial counter now resetted to %s') % var.trialCounter
+					if var.blockID < 3:
+						var.blockID += 1
+					else:
+						var.blockID = 0
+					var.blockCounter += 1
+					print('Block info updated. ID: %s, number: %s ') % (var.blockID, var.blockCounter)	
 			return winner, rounds
 	__end__
 	set _prepare ""
@@ -1046,7 +1095,7 @@ define quest_staircase_init new_quest_staircase_init
 	set var_test_value questStaircaseValue
 	set test_value_method quantile
 	set t_guess_sd 0.25
-	set t_guess 0.2
+	set t_guess 0.1
 	set p_threshold 0.75
 	set min_test_value 0
 	set max_test_value 1
@@ -1055,22 +1104,9 @@ define quest_staircase_init new_quest_staircase_init
 	set delta 0.01
 	set beta 3.5
 
-define quest_staircase_next new_quest_staircase_next
-	set response_var correct
-	set description "Updates the Quest test value based on a response"
-
 define quest_staircase_next new_quest_staircase_next_1
 	set response_var correct_selection
 	set description "Updates the Quest test value based on a response"
-
-define pygaze_drift_correct pygaze_drift_correct
-	set ypos 0
-	set xpos 0
-	set target_style default
-	set target_color "[foreground]"
-	set fixation_triggered yes
-	set draw_target yes
-	set description "Perform eye-tracker drift correction"
 
 define pygaze_init pygaze_init
 	set tracker_type EyeTribe
@@ -1108,6 +1144,7 @@ define sequence python_definitions
 	run globals always
 	run speech always
 	run smoothing always
+	run experiment_settings always
 	run item always
 	run itemArray always
 	run eye_tracker always
@@ -1116,8 +1153,33 @@ define sequence python_definitions
 define inline_script select_target
 	set description "Executes Python code"
 	___run__
-	var.likelihoodThr = var.questStaircaseValue * 10 + 1
-	print(var.likelihoodThr)
+	# Block properties
+	if var.blockID == 0:
+		var.staircase = 'yes'
+		var.trialThreshold = 'no'
+	elif var.blockID == 1:
+		var.staircase = 'no'
+		var.trialThreshold = 'yes'
+		var.trialThresholdOption = 1
+	elif var.blockID == 2:
+		var.staircase = 'no'
+		var.trialThreshold = 'yes'
+		var.trialThresholdOption = 2
+	else:
+		var.staircase = 'no'
+		var.trialThreshold = 'yes'
+		var.trialThresholdOption = 3
+		
+	# Staircase properties
+	
+	if var.staircase != 'no': 
+		var.likelihoodThr = var.questStaircaseValue * 10 + 1
+		print('Staircase threshold on, current value: %s') % var.likelihoodThr
+	else:
+		var.likelihoodThr = 2
+		print('Staircase threshold off, set global threshold to %s') % var.likelihoodThr
+		
+	# Original code	
 	
 	if var.showCue == 'yes':
 		cue = var.target
