@@ -76,12 +76,12 @@ define inline_script default_settings
 	var.blockCounter = 0
 	var.trialCounter = 1
 	var.numberOfTrials = 3
-	print('Trial Counter: %s') % var.trialCounter
 	
 	# Adaptive threshold settings.
 	var.staircase = 'yes'
 	var.trialThreshold = 'yes'
-	var.trialThresholdOption = 1
+	var.trialThresholdOption = 0
+	var.localLikelihoodThr = 2 # Used for logging
 	__end__
 
 define loop eight_options
@@ -151,10 +151,10 @@ define inline_script experiment_settings
 	if var.subject_nr % 4 == 0:
 		var.blockID = 0
 		var.blockOrder = 0
-	elif var.subject % 4 == 1:
+	elif var.subject_nr % 4 == 1:
 		var.blockID = 1
 		var.blockOrder = 1
-	elif var.subject % 4 == 2:
+	elif var.subject_nr % 4 == 2:
 		var.blockID = 2
 		var.blockOrder = 2
 	else:
@@ -244,7 +244,7 @@ define form_base form_base
 	widget 2 1 1 1 image_button path="8afc.png" var=opt8
 	widget 0 2 1 1 checkbox text="Check fixation / Controle de fixation" var=checkFix
 	widget 1 2 1 1 checkbox text="Gaze stabilization / Stabilisation de regard" var=stabilize
-	widget 0 3 1 1 checkbox checked=True text="Quest staircase threshold" var=staircase
+	widget 0 3 1 1 checkbox text="Practice Mode" var=practiceMode
 	widget 1 3 1 1 checkbox checked=True text="Individual trial threshold" var=trialThreshold
 	widget 0 4 1 1 label text="Select individual trial threshold option:"
 	widget 1 4 1 1 text_input text=1 var=trialThresholdOption
@@ -867,19 +867,14 @@ define inline_script itemArray
 			"""
 			if var.trialThreshold != 'no':
 				if var.trialThresholdOption == 1: 
-					print('Selected first algorithm')
 					return self.minMaxThr(thresholdValue)
 				elif var.trialThresholdOption == 2:
-					print('Selected second algorithm')
 					return self.varianceThr(thresholdValue)
 				elif var.trialThresholdOption == 3:
-					print('Selected third algorithm')
 					return self.consistencyThr(thresholdValue)
 				else:
-					print('No algorithm selected')
 					return 2
 			else:
-				print('No individual threshold selected')
 				return 2
 				
 		def minMaxThr(self, thresholdValue):
@@ -892,13 +887,10 @@ define inline_script itemArray
 				pupilSizeDifference =  abs(self.lPupilSizeChange[-2] - self.lPupilSizeChange[-1])
 				if pupilSizeDifference >= 0.1:
 					thresholdValue *= 0.9
-					print('Threshold decreased! New value is: %s') % thresholdValue
 				elif pupilSizeDifference <= 0.025:
 					thresholdValue /= 0.9
-					print('Threshold increased! New value is: %s') % thresholdValue
 				else:
-					print('Threshold mantained! Current value: %s') % thresholdValue
-			
+					pass		
 			if thresholdValue <= 1:
 				thresholdValue = 1
 			return thresholdValue
@@ -916,13 +908,10 @@ define inline_script itemArray
 			if len(self.lPupilSizeChange) > 3: # Arbitrary
 				if np.std(self.lPupilSizeChange) >= np.mean(self.lPupilSizeChange)**2:
 					thresholdValue /= 0.75
-					print('Too much variance, threshold reduced: %s') % thresholdValue 
 				elif np.std(self.lPupilSizeChange) <= np.sqrt(np.mean(self.lPupilSizeChange)):
 					thresholdValue *= 0.75
-					print('Too little variance, threshold increased: %s') % thresholdValue
 				else:
-					print('Variance within margins. Threshold unchanged: %s') % thresholdValue
-					
+					pass
 			if thresholdValue <= 1:
 				thresholdValue = 1
 			return thresholdValue
@@ -939,14 +928,11 @@ define inline_script itemArray
 			
 			if len(self.lPupilSizeChange) >= 4:
 				if (self.lPupilSizeChange[-4] > self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] < self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] > self.lPupilSizeChange[-1]) or (self.lPupilSizeChange[-4] < self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] > self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] < self.lPupilSizeChange[-1]): # This needs some obvious optimization...
-					print('Input is consistent! Reducing threshold!')
 					thresholdValue -= .25
 				else:
-					print('Input is not consistent! Increasing threshold!')
 					thresholdValue += .25
 			if thresholdValue <= 1:
 				thresholdValue = 1
-			print('Threshold is now %s') % thresholdValue
 			return thresholdValue	
 		
 		def selectionLoop(self, initialSleep=1000, invertSteps=500, adaptDur=500,
@@ -1006,6 +992,7 @@ define inline_script itemArray
 				self.lPupilSizeChange.append(meanPupilSize)
 				
 				self.likelihoodThr = self.localThreshold(likelihoodThr)
+				var.localLikelihoodThr = self.likelihoodThr # For logging
 				self.pupilSizeIndicator.setText(str(meanPupilSize))
 				for item in self.items:
 					item.setPupilSize(meanPupilSize)				
@@ -1063,19 +1050,16 @@ define inline_script itemArray
 						exp.set('correct_selection', 0)
 			eyetracker.log('var rounds %d' % rounds)
 			eyetracker.log('end_selection_loop')
-			if var.practiceMode != 'yes':
+			if var.practiceMode == 'no':
 				if var.trialCounter < var.numberOfTrials:
-					print('Trial number: %s') % var.trialCounter
 					var.trialCounter += 1
 				else:
 					var.trialCounter = 1
-					print('Trial counter now resetted to %s') % var.trialCounter
 					if var.blockID < 3:
 						var.blockID += 1
 					else:
 						var.blockID = 0
 					var.blockCounter += 1
-					print('Block info updated. ID: %s, number: %s ') % (var.blockID, var.blockCounter)	
 			return winner, rounds
 	__end__
 	set _prepare ""
@@ -1157,6 +1141,7 @@ define inline_script select_target
 	if var.blockID == 0:
 		var.staircase = 'yes'
 		var.trialThreshold = 'no'
+		var.trialThresholdOption = 0
 	elif var.blockID == 1:
 		var.staircase = 'no'
 		var.trialThreshold = 'yes'
@@ -1172,12 +1157,10 @@ define inline_script select_target
 		
 	# Staircase properties
 	
-	if var.staircase != 'no': 
+	if var.staircase != 'no' and var.practiceMode == 'no': 
 		var.likelihoodThr = var.questStaircaseValue * 10 + 1
-		print('Staircase threshold on, current value: %s') % var.likelihoodThr
 	else:
 		var.likelihoodThr = 2
-		print('Staircase threshold off, set global threshold to %s') % var.likelihoodThr
 		
 	# Original code	
 	
