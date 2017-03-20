@@ -85,7 +85,6 @@ define inline_script default_settings
 	__end__
 
 define loop eight_options
-	set source_file ""
 	set source table
 	set skip 0
 	set repeat 2
@@ -97,7 +96,7 @@ define loop eight_options
 	set continuous no
 	set column_order "target;itemIds"
 	set break_if_on_first yes
-	set break_if never
+	set break_if "[total_responses] = 5"
 	setcycle 0 target A
 	setcycle 0 itemIds ABCDEFGH
 	setcycle 1 target B
@@ -136,13 +135,11 @@ define sequence experiment
 	run README always
 	run pygaze_init always
 	run form_base always
+	run startup_variables always
 	run new_quest_staircase_init always
 	run python_definitions always
-	run two_options "[opt2] = yes"
-	run four_options "[opt4] = yes"
 	run eight_options "[opt8] = yes"
-	run free_writing_loop "[free_writing] = yes"
-	run final_feedback "[free_writing] != yes"
+	run final_feedback "[opt8] = yes"
 	run keyboard_response always
 
 define inline_script experiment_settings
@@ -220,16 +217,13 @@ define feedback feedback
 
 define feedback final_feedback
 	set reset_variables yes
-	set duration 0
+	set duration keypress
 	set description "Provides feedback to the participant"
-	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="<b>Fin du bloc</b><br /><br />Précision: [acc] %<br />Temps de réponse moyenne: [avg_rt] s<br /><br />Vuillez appeler l'experimentateur" x=0 y=0 z_index=0
+	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="<b>That is the end of the experiment</b><br /><br />Accuracy: [acc] %<br />Average response time: [avg_rt] s<br /><br />You may now call the researcher." x=0 y=0 z_index=0
 	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=always text="Appuyez 'q' pour quitter." x=0 y=448 z_index=0
+	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="" x=-64 y=-96 z_index=0
 
 define form_base form_base
-	# widget 0 4 1 1 label text="Threshold/ Seuil"
-	# widget 1 4 1 1 text_input text=1.375 var=likelihoodThr
-	# widget 0 2 1 1 image_button path="8afc.png" var=opt8
-	# widget 1 2 1 1 image_button path="freewriting.png" var=free_writing
 	set timeout infinite
 	set spacing 10
 	set rows "2;3;3;1;1"
@@ -238,16 +232,8 @@ define form_base form_base
 	set description "A generic form plug-in"
 	set cols "1;1"
 	set _theme gray
-	widget 0 0 2 1 image path="getyourmindwrite.png"
-	widget 0 1 1 1 image_button path="2afc.png" var=opt2
-	widget 1 1 1 1 image_button path="4afc.png" var=opt4
-	widget 2 1 1 1 image_button path="8afc.png" var=opt8
-	widget 0 2 1 1 checkbox text="Check fixation / Controle de fixation" var=checkFix
-	widget 1 2 1 1 checkbox text="Gaze stabilization / Stabilisation de regard" var=stabilize
-	widget 0 3 1 1 checkbox text="Practice Mode" var=practiceMode
-	widget 1 3 1 1 checkbox checked=True text="Individual trial threshold" var=trialThreshold
-	widget 0 4 1 1 label text="Select individual trial threshold option:"
-	widget 1 4 1 1 text_input text=1 var=trialThresholdOption
+	widget 0 1 2 1 image_button path="getyourmindwrite.png" var=opt8
+	widget 1 3 1 1 checkbox checked=True text="Practice Mode" var=practiceMode
 
 
 define loop four_options
@@ -1060,6 +1046,7 @@ define inline_script itemArray
 					else:
 						var.blockID = 0
 					var.blockCounter += 1
+				print('Trial: %s, block ID: %s, block Counter: %s') % (var.trialCounter, var.blockID, var.blockCounter)
 			return winner, rounds
 	__end__
 	set _prepare ""
@@ -1093,7 +1080,7 @@ define quest_staircase_next new_quest_staircase_next_1
 	set description "Updates the Quest test value based on a response"
 
 define pygaze_init pygaze_init
-	set tracker_type EyeTribe
+	set tracker_type "Advanced dummy (mouse simulation)"
 	set smi_send_port 4444
 	set smi_recv_port 5555
 	set smi_ip "127.0.0.1"
@@ -1275,6 +1262,15 @@ define inline_script speech
 			subprocess.Popen(['espeak', '-s', '140', msg])
 		except:
 			print('Text synthesis not available!')
+	__end__
+	set _prepare ""
+
+define inline_script startup_variables
+	set description "Executes Python code"
+	___run__
+	var.stabilize = 'no'
+	var.checkFix = 'no'
+	var.total_responses = 0
 	__end__
 	set _prepare ""
 
