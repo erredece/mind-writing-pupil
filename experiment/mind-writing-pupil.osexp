@@ -96,7 +96,7 @@ define loop eight_options
 	set continuous no
 	set column_order "target;itemIds"
 	set break_if_on_first yes
-	set break_if "[total_responses] = 5"
+	set break_if "[total_responses] = [numberOfTrials] * 4"
 	setcycle 0 target A
 	setcycle 0 itemIds ABCDEFGH
 	setcycle 1 target B
