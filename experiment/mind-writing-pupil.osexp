@@ -75,7 +75,7 @@ define inline_script default_settings
 	var.blockOrder = 0
 	var.blockCounter = 0
 	var.trialCounter = 1
-	var.numberOfTrials = 3
+	var.numberOfTrials = 30
 	
 	# Adaptive threshold settings.
 	var.staircase = 'yes'
@@ -87,7 +87,7 @@ define inline_script default_settings
 define loop eight_options
 	set source table
 	set skip 0
-	set repeat 2
+	set repeat 30
 	set order random
 	set offset no
 	set item exp_sequence
@@ -1080,7 +1080,7 @@ define quest_staircase_next new_quest_staircase_next_1
 	set description "Updates the Quest test value based on a response"
 
 define pygaze_init pygaze_init
-	set tracker_type "Advanced dummy (mouse simulation)"
+	set tracker_type EyeTribe
 	set smi_send_port 4444
 	set smi_recv_port 5555
 	set smi_ip "127.0.0.1"
