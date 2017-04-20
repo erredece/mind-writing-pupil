@@ -29,7 +29,7 @@ set font_size 18
 set font_italic no
 set font_family mono
 set font_bold no
-set experiment_path "C:/Users/Roberto/Documents/GitHub/mind-writing-pupil/experiment"
+set experiment_path "C:\\Users\\user\\Desktop\\BCI experiment - Roberto de Cecilio\\experiment"
 set disable_garbage_collection yes
 set description "A brain-computer interface based on covert attention and pupillometry"
 set coordinates relative
@@ -85,6 +85,7 @@ define inline_script default_settings
 	__end__
 
 define loop eight_options
+	set source_file ""
 	set source table
 	set skip 0
 	set repeat 30
@@ -757,6 +758,11 @@ define inline_script itemArray
 				self.pupilSizeIndicator.draw()
 			if self.writingIndicator != None:
 				self.writingIndicator.draw()
+			if var.staircase != 'no':
+				TextStim(win, '%.4f' % var.likelihoodThr).draw()
+				print('Threshold: ', var.likelihoodThr, 'Quest value:', var.questStaircaseValue)
+			else:
+				TextStim(win, '%.4f' % var.localLikelihoodThr).draw()
 			win.flip()
 			
 		def meanLikelihood(self):
@@ -911,12 +917,23 @@ define inline_script itemArray
 			If, alternatively, these changes are not consistent, the threshold level
 			will be increased.
 			"""
-			
-			if len(self.lPupilSizeChange) >= 4:
-				if (self.lPupilSizeChange[-4] > self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] < self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] > self.lPupilSizeChange[-1]) or (self.lPupilSizeChange[-4] < self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] > self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] < self.lPupilSizeChange[-1]): # This needs some obvious optimization...
-					thresholdValue -= .25
+	
+			if len(self.lPupilSizeChange) >= 3:
+				a = np.array(self.lPupilSizeChange[-3:])
+				d = a[1:]-a[:-1]
+				if np.prod(d) < 0:
+					print(a, d, 'down', thresholdValue)				
+					thresholdValue *= .9
 				else:
-					thresholdValue += .25
+					print(a, d, 'up', thresholdValue)
+					thresholdValue /= .9
+				
+			
+	#		if len(self.lPupilSizeChange) >= 4:
+	#			if (self.lPupilSizeChange[-4] > self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] < self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] > self.lPupilSizeChange[-1]) or (self.lPupilSizeChange[-4] < self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] > self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] < self.lPupilSizeChange[-1]): # This needs some obvious optimization...
+	#				thresholdValue -= .25
+	#			else:
+	#				thresholdValue += .25
 			if thresholdValue <= 1:
 				thresholdValue = 1
 			return thresholdValue	
@@ -977,7 +994,7 @@ define inline_script itemArray
 				meanPupilSize = np.median(a)
 				self.lPupilSizeChange.append(meanPupilSize)
 				
-				self.likelihoodThr = self.localThreshold(likelihoodThr)
+				likelihoodThr = self.likelihoodThr = self.localThreshold(likelihoodThr)
 				var.localLikelihoodThr = self.likelihoodThr # For logging
 				self.pupilSizeIndicator.setText(str(meanPupilSize))
 				for item in self.items:
