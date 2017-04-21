@@ -158,8 +158,6 @@ define inline_script experiment_settings
 	else:
 		var.blockID = 3
 		var.blockOrder = 3
-	
-	print(var.subject_nr % 4)
 	__end__
 	set _prepare ""
 
@@ -758,11 +756,11 @@ define inline_script itemArray
 				self.pupilSizeIndicator.draw()
 			if self.writingIndicator != None:
 				self.writingIndicator.draw()
-			if var.staircase != 'no':
-				TextStim(win, '%.4f' % var.likelihoodThr).draw()
-				print('Threshold: ', var.likelihoodThr, 'Quest value:', var.questStaircaseValue)
-			else:
-				TextStim(win, '%.4f' % var.localLikelihoodThr).draw()
+	#		if var.staircase != 'no':
+	#			TextStim(win, '%.4f' % var.likelihoodThr).draw()
+	#			print('Threshold: ', var.likelihoodThr, 'Quest value:', var.questStaircaseValue)
+	#		else:
+	#			TextStim(win, '%.4f' % var.localLikelihoodThr).draw()
 			win.flip()
 			
 		def meanLikelihood(self):
@@ -853,39 +851,19 @@ define inline_script itemArray
 				self.items[0].showMirror = True
 				self.items[1].showMirror = True
 				
-		def localThreshold(self, thresholdValue = 2):
+		def localThreshold(self, thresholdValue = 1.5):
 			"""
 			Gets one of the adaptive algorithms and retuns the new threshold value. 
 			"""
-			if var.trialThreshold != 'no':
-				if var.trialThresholdOption == 1: 
-					return self.minMaxThr(thresholdValue)
-				elif var.trialThresholdOption == 2:
+			if var.trialThreshold != 'no' and var.practiceMode == 'no':
+				if var.trialThresholdOption == 1:
 					return self.varianceThr(thresholdValue)
-				elif var.trialThresholdOption == 3:
+				elif var.trialThresholdOption == 2:
 					return self.consistencyThr(thresholdValue)
 				else:
-					return 2
+					return 1.5
 			else:
-				return 2
-				
-		def minMaxThr(self, thresholdValue):
-			"""
-			Calculates a new threshold value based on the difference between the 
-			last pupil sizes.
-			"""
-			
-			if len(self.lPupilSizeChange) > 2:
-				pupilSizeDifference =  abs(self.lPupilSizeChange[-2] - self.lPupilSizeChange[-1])
-				if pupilSizeDifference >= 0.1:
-					thresholdValue *= 0.9
-				elif pupilSizeDifference <= 0.025:
-					thresholdValue /= 0.9
-				else:
-					pass		
-			if thresholdValue <= 1:
-				thresholdValue = 1
-			return thresholdValue
+				return 1.5
 				
 		def varianceThr(self, thresholdValue):		
 			"""
@@ -899,9 +877,9 @@ define inline_script itemArray
 				
 			if len(self.lPupilSizeChange) > 3: # Arbitrary
 				if np.std(self.lPupilSizeChange) >= np.mean(self.lPupilSizeChange)**2:
-					thresholdValue /= 0.75
+					thresholdValue /= 0.85
 				elif np.std(self.lPupilSizeChange) <= np.sqrt(np.mean(self.lPupilSizeChange)):
-					thresholdValue *= 0.75
+					thresholdValue *= 0.85
 				else:
 					pass
 			if thresholdValue <= 1:
@@ -926,14 +904,7 @@ define inline_script itemArray
 					thresholdValue *= .9
 				else:
 					print(a, d, 'up', thresholdValue)
-					thresholdValue /= .9
-				
-			
-	#		if len(self.lPupilSizeChange) >= 4:
-	#			if (self.lPupilSizeChange[-4] > self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] < self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] > self.lPupilSizeChange[-1]) or (self.lPupilSizeChange[-4] < self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] > self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] < self.lPupilSizeChange[-1]): # This needs some obvious optimization...
-	#				thresholdValue -= .25
-	#			else:
-	#				thresholdValue += .25
+					thresholdValue /= .9		
 			if thresholdValue <= 1:
 				thresholdValue = 1
 			return thresholdValue	
@@ -996,6 +967,12 @@ define inline_script itemArray
 				
 				likelihoodThr = self.likelihoodThr = self.localThreshold(likelihoodThr)
 				var.localLikelihoodThr = self.likelihoodThr # For logging
+				
+				if var.staircase != 'no':
+					self.likelihoodThr =  var.likelihoodThr
+				
+				print('likelihoodThr:', self.likelihoodThr)
+				
 				self.pupilSizeIndicator.setText(str(meanPupilSize))
 				for item in self.items:
 					item.setPupilSize(meanPupilSize)				
@@ -1084,7 +1061,7 @@ define quest_staircase_init new_quest_staircase_init
 	set test_value_method quantile
 	set t_guess_sd 0.25
 	set t_guess 0.1
-	set p_threshold 0.75
+	set p_threshold 0.8
 	set min_test_value 0
 	set max_test_value 1
 	set gamma 0.5
@@ -1164,7 +1141,7 @@ define inline_script select_target
 	if var.staircase != 'no' and var.practiceMode == 'no': 
 		var.likelihoodThr = var.questStaircaseValue * 10 + 1
 	else:
-		var.likelihoodThr = 2
+		var.likelihoodThr = 1.5
 		
 	# Original code	
 	
