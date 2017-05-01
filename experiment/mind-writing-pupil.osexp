@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 API: 2
 OpenSesame: 3.1.6
@@ -1290,3 +1291,1299 @@ define loop two_options
 	setcycle 3 itemIds BA
 	run exp_sequence
 
+=======
+---
+API: 2
+OpenSesame: 3.1.6
+Platform: nt
+---
+set width 1280
+set uniform_coordinates yes
+set transparent_variables no
+set title "Attend-and-click training"
+set synth_backend legacy
+set subject_parity even
+set subject_nr 0
+set start experiment
+set sound_sample_size -16
+set sound_freq 48000
+set sound_channels 2
+set sound_buf_size 1024
+set sampler_backend legacy
+set round_decimals 2
+set psychopy_screen 1
+set mouse_backend psycho
+set keyboard_backend psycho
+set height 1024
+set fullscreen no
+set form_clicks no
+set foreground white
+set font_underline no
+set font_size 18
+set font_italic no
+set font_family mono
+set font_bold no
+set experiment_path "C:\\Users\\user\\Desktop\\BCI experiment - Roberto de Cecilio\\experiment"
+set disable_garbage_collection yes
+set description "A brain-computer interface based on covert attention and pupillometry"
+set coordinates relative
+set compensation 0
+set color_backend psycho
+set clock_backend psycho
+set canvas_backend psycho
+set bidi no
+set background "#4c4c4c"
+
+define notepad README
+	__note__
+	This experiment implements a pupillometry-based human-computer interface, as
+	described in:
+		
+		Mathôt, Melmi, van der Linden, & Van der Stigchel (2016). A human-computer
+		interface based on decoding of covert visual attention through pupillometry.
+		PLoS ONE.
+	__end__
+	set description "A simple notepad to document your experiment. This plug-in does nothing."
+
+define pygaze_start_recording _pygaze_start_recording
+	set status_msg "start_trial [count_free_writing]"
+	set description "Puts the eye tracker into recording mode"
+
+define sketchpad blank
+	set reset_variables no
+	set duration 0
+	set description "Displays stimuli"
+
+define inline_script default_settings
+	set description "Executes Python code"
+	set _run ""
+	___prepare__
+	var.mode2 = '90upmirror'
+	var.ecc = 390
+	var.size = 132
+	var.showCue = 'no'
+	
+	#Blocking Settings
+	var.practiceMode = 'no'
+	var.blockID = 0
+	var.blockOrder = 0
+	var.blockCounter = 0
+	var.trialCounter = 1
+	var.numberOfTrials = 30
+	
+	# Adaptive threshold settings.
+	var.staircase = 'yes'
+	var.trialThreshold = 'yes'
+	var.trialThresholdOption = 0
+	var.localLikelihoodThr = 2 # Used for logging
+	__end__
+
+define loop eight_options
+	set source_file ""
+	set source table
+	set skip 0
+	set repeat 30
+	set order random
+	set offset no
+	set item exp_sequence
+	set description "Repeatedly runs another item"
+	set cycles 8
+	set continuous no
+	set column_order "target;itemIds"
+	set break_if_on_first yes
+	set break_if "[total_responses] = [numberOfTrials] * 4"
+	setcycle 0 target A
+	setcycle 0 itemIds ABCDEFGH
+	setcycle 1 target B
+	setcycle 1 itemIds ABCDEFGH
+	setcycle 2 target C
+	setcycle 2 itemIds ABCDEFGH
+	setcycle 3 target D
+	setcycle 3 itemIds ABCDEFGH
+	setcycle 4 target E
+	setcycle 4 itemIds ABCDEFGH
+	setcycle 5 target F
+	setcycle 5 itemIds ABCDEFGH
+	setcycle 6 target G
+	setcycle 6 itemIds ABCDEFGH
+	setcycle 7 target H
+	setcycle 7 itemIds ABCDEFGH
+	run exp_sequence
+
+define sequence exp_sequence
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run pygaze_start_recording always
+	run speak_target always
+	run sketchpad always
+	run select_target always
+	run new_quest_staircase_next_1 always
+	run feedback always
+	run blank always
+	run pygaze_log always
+	run logger always
+	run pygaze_stop_recording always
+
+define sequence experiment
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run README always
+	run pygaze_init always
+	run form_base always
+	run startup_variables always
+	run new_quest_staircase_init always
+	run python_definitions always
+	run eight_options "[opt8] = yes"
+	run final_feedback "[opt8] = yes"
+	run keyboard_response always
+
+define inline_script experiment_settings
+	set description "Executes Python code"
+	___run__
+	if var.subject_nr % 4 == 0:
+		var.blockID = 0
+		var.blockOrder = 0
+	elif var.subject_nr % 4 == 1:
+		var.blockID = 1
+		var.blockOrder = 1
+	elif var.subject_nr % 4 == 2:
+		var.blockID = 2
+		var.blockOrder = 2
+	else:
+		var.blockID = 3
+		var.blockOrder = 3
+	__end__
+	set _prepare ""
+
+define inline_script eye_tracker
+	set description "Eye-tracker functionality"
+	___run__
+	if 'dummy' in exp.items['pygaze_init'].tracker_type:
+		pylink = None
+	else:
+		import pylink
+	
+	def collectPupilTrace(itemArray, dur, fd=10):
+		
+		"""
+		desc:
+			Returns an array of recorded pupil-size values.
+			
+		arguments:
+			itemArray:		An ItemArray object.
+			dur:			The recording duration.
+			fd:				The frame duration in milliseconds.
+			
+		returns:
+			A numpy array that with a dur/fd length.
+		"""
+		
+		t0 = self.time()
+		a = np.zeros(dur/fd)
+		_dt = 0
+		while _dt < dur:		
+			itemArray.show()
+			if pylink != None:
+				ps = eyetracker.pupil_size()
+				if ps == 0:
+					ps = np.nan
+			else:
+				# Use Y coordinate of mouse
+				ps = my_mouse.get_pos()[0][1]+var.height/2
+			dt = self.time()-t0
+			a[int(_dt/fd):int(dt/fd)] = ps
+			#print "Current pupil size: %s" % a[int(_dt/fd):int(dt/fd)]
+			#print "Previous pupil size: %s" % a[int(_dt/fd) - 1:int(dt/fd)]
+	
+			_dt = dt
+			if my_keyboard.get_key()[0] == 'space':
+				say(var.target)
+		return a
+	__end__
+	set _prepare ""
+
+define feedback feedback
+	set reset_variables no
+	set duration keypress
+	set description "Provides feedback to the participant"
+	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="<b>End of selection</b><br /><br />Correct: [correct_selection]<br />Nr. of rounds: [rounds]<br />Duration: [loop_rt] s<br /><br />Press a key to continue ..." x=0 y=0 z_index=0
+
+define feedback final_feedback
+	set reset_variables yes
+	set duration keypress
+	set description "Provides feedback to the participant"
+	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="<b>That is the end of the experiment</b><br /><br />Accuracy: [acc] %<br />Average response time: [avg_rt] s<br /><br />You may now call the researcher." x=0 y=0 z_index=0
+	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=always text="Appuyez 'q' pour quitter." x=0 y=448 z_index=0
+	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="" x=-64 y=-96 z_index=0
+
+define form_base form_base
+	set timeout infinite
+	set spacing 10
+	set rows "2;3;3;1;1"
+	set only_render no
+	set margins "50;50;50;50"
+	set description "A generic form plug-in"
+	set cols "1;1"
+	set _theme gray
+	widget 0 1 2 1 image_button path="getyourmindwrite.png" var=opt8
+	widget 1 3 1 1 checkbox checked=True text="Practice Mode" var=practiceMode
+
+
+define loop four_options
+	set source_file ""
+	set source table
+	set skip 0
+	set repeat 4
+	set order random
+	set offset no
+	set item exp_sequence
+	set description "Repeatedly runs another item"
+	set cycles 4
+	set continuous no
+	set column_order "target;itemIds"
+	set break_if_on_first yes
+	set break_if never
+	setcycle 0 target A
+	setcycle 0 itemIds ABCD
+	setcycle 1 target B
+	setcycle 1 itemIds ABCD
+	setcycle 2 target C
+	setcycle 2 itemIds ABCD
+	setcycle 3 target D
+	setcycle 3 itemIds ABCD
+	run exp_sequence
+
+define sequence free_writing
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run _pygaze_start_recording always
+	run free_writing_script always
+	run free_writing_feedback always
+	run pygaze_log always
+	run logger always
+	run pygaze_stop_recording always
+
+define feedback free_writing_feedback
+	set reset_variables no
+	set duration keypress
+	set description "Provides feedback to the participant"
+	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="You wrote:<br /><br />[free_writing_text]<br />" x=0 y=0 z_index=0
+	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=always text="Appuyez sur 'q' pour quitter." x=0 y=448 z_index=0
+
+define loop free_writing_loop
+	set source_file ""
+	set source table
+	set skip 0
+	set repeat 1
+	set order random
+	set offset no
+	set item free_writing
+	set description "Repeatedly runs another item"
+	set cycles 1
+	set continuous no
+	set column_order ""
+	set break_if_on_first yes
+	set break_if never
+	setcycle 0 empty_column ""
+	run free_writing
+
+define inline_script free_writing_script
+	set description "Executes Python code"
+	___run__
+	s = ''
+	t0 = clock.time()
+	eyetracker.log('start_free_writing')
+	while True:
+		ch = getInput(writingIndicator=s)
+		if ch == 'Finish':
+			break
+		if ch == 'Del' and len(s) > 0:
+			s = s[:-1]
+		elif ch == 'Space':
+			s += u' '
+		else:
+			s += ch
+		say(s)
+	t1 = clock.time()
+	say('You wrote %s' % s)
+	var.free_writing_text = s
+	eyetracker.log('var free_writing_result %s' % s)
+	eyetracker.log('var free_writing_time %s' % (t1-t0))
+	eyetracker.log('end_free_writing')
+	__end__
+	set _prepare ""
+
+define inline_script get_input
+	set description "Executes Python code"
+	___run__
+	def getInput(writingIndicator=None):
+		
+		"""
+		desc:
+			Gets a single input character.
+			
+		keywords:
+			writingIndicator:	See ItemArray.
+			
+		returns:
+			An input character
+		"""
+	
+		exp.pygaze_eyetracker.log('start_get_input')
+		items = {
+			'ABCD'			: ['B', 'A', 'D', 'C'],
+			'EFGH'			: ['F', 'E', 'H', 'G'],
+			'IJKL'			: ['J', 'I', 'L', 'K'],
+			'MNOP'			: ['N', 'M', 'P', 'O'],
+			'QRST'			: ['R', 'Q', 'T', 'S'],
+			'UVWX'			: ['V', 'U', 'X', 'W'],
+			'YZ?Space'		: ['Z', 'Y', 'Question', 'Space'],
+			'DelFinish'		: ['Del', 'Finish'],
+			}
+		itemKeys = [
+			'IJKL',
+			'EFGH',
+			'ABCD',
+			'DelFinish',
+			'YZQuestionSpace',
+			'UVWX',
+			'QRST',
+			'MNOP',
+			]
+		if self.get('stabilize') != 'no':
+			stabilize = True
+		else:
+			stabilize = False		
+		if self.get('checkFix') != 'no':
+			checkFix = True
+		else:
+			checkFix = False
+		ia = ItemArray(itemKeys,
+			ecc=self.get('ecc'),
+			size=self.get('size'),
+			bgScale=2,
+			stabilize=stabilize,
+			writingIndicator=writingIndicator,
+			check=checkFix
+			)
+		winner, rounds = ia.selectionLoop(
+			target=None,
+			mode2=self.get('mode2'),
+			likelihoodThr=self.get('likelihoodThr'),
+			cue=False
+			)
+		print 'Winner of first round %s' % winner.itemId
+		ia = ItemArray(items[winner.itemId],
+			ecc=self.get('ecc'),
+			size=self.get('size'),
+			bgScale=2,
+			writingIndicator=writingIndicator,
+			check=checkFix
+			)
+		winner, rounds = ia.selectionLoop(
+			target=None,
+			mode2=self.get('mode2'),
+			likelihoodThr=self.get('likelihoodThr'),
+			cue=False
+			)
+		print 'Winner of second round %s' % winner.itemId
+		exp.pygaze_eyetracker.log('end_get_input %s' % winner.itemId)
+		return winner.itemId
+	__end__
+	set _prepare ""
+
+define inline_script globals
+	set description "Global objects and import statements"
+	___run__
+	import string
+	import numpy as np
+	import random
+	import os
+	from psychopy.visual import TextStim, GratingStim, ImageStim
+	import subprocess
+	
+	my_keyboard = keyboard(timeout=0)
+	my_mouse = mouse()
+	xc = var.width/2
+	yc = var.height/2
+	__end__
+	set _prepare ""
+
+define inline_script item
+	set description "Class definition"
+	___run__
+	class Item(object):
+		
+		"""
+		desc:
+			A single selectable item.
+		"""
+		
+		def __init__(self, itemArray, itemId, angle, ecc, opacity=.5, color='green',
+			size=64, brightness=1, mirror=False, bgScale=2):
+				
+			"""
+			desc:
+				constructor.
+				
+			arguments:
+				itemArray:		An ItemArray object.
+				itemId:			A string that is shown and identifies the item.
+				angle:			
+								The angular position of the item. This is in radians
+								counterclockwise, starting from a 3 o'clock
+								position.
+				ecc:			The eccentricity of the item.
+			
+			keywords:
+				opacity:		The opacity of the item-id string.
+				color:			The color of the item-id string.
+				size:			
+								The size of the item, which corresponds to the
+								height of the item-id string and the radius of the
+								background patch.
+				brightness:		The brightness of the background patch.			
+				mirror:			Indicates whether a 'mirror' background patch
+								should be shown as well.
+				bgScale:		The size of the background relative to the
+								items.
+			"""
+			
+			self.itemArray = itemArray
+			self.itemId = itemId
+			self.opacity = .5
+			self.color = color
+			self.size = size
+			self.lLikelihood = [1]
+			self.angle = angle
+			self.imScale = 1.5
+			self.brightness = brightness
+			self.ecc = ecc
+			self.background = GratingStim(win, tex=None, mask='raisedCos',
+				color=self.brightness, size=size*bgScale)
+			self.showMirror = mirror
+			self.mirror = GratingStim(win, tex=None, mask='raisedCos',
+				color=self.brightness, size=size*bgScale)		
+			path = os.path.join(exp.experiment_path, '__pool__', '%s.png' % itemId)
+			if os.path.exists(path):
+				self.stim = ImageStim(win, path, opacity=self.opacity)		
+			else:
+				self.stim = TextStim(win, itemId, opacity=self.opacity,
+					color=self.color, height=size)		
+			self.cue = GratingStim(win, tex=None, mask=None, color='green',
+				size=(128,2))
+			self.lPrediction = []
+			self.lPupilSize = []
+			self.lPupilSizeChange = [] # Used by some adaptive threshold algorithms.
+			self.setAngle(angle)
+										
+		def likelihood(self):
+			
+			"""
+			desc:
+				Determines the most recent likelihood estimate that this item is
+				selected.
+				
+			returns:
+				A likelihood value.
+			"""
+			
+			if np.isnan(self.lLikelihood[-1]):
+				return 1
+			return self.lLikelihood[-1]
+			
+		def setBrightness(self, brightness):
+			
+			"""
+			desc:
+				Sets the brightness of the background patch.
+				
+			arguments:
+				brightness:		A brightness value.
+			"""
+			
+			self.background.setColor(brightness)
+			self.brightness = brightness
+			self.mirror.setColor(brightness)
+			
+		def setAngle(self, angle):
+			
+			"""
+			desc:
+				Sets the angle of the item.
+				
+			arguments:
+				angle:		The new angle.
+			"""
+			
+			self.angle = angle
+			x = self.ecc * np.cos(angle)
+			y = self.ecc * np.sin(angle)
+			self.xy = x,y
+			self.stim.pos = self.xy
+			self.background.pos = self.xy
+			self.mirror.pos = -x, -y
+			self.cue.setOri(np.degrees(-angle))
+			
+		def setPupilSize(self, pupilSize):
+			
+			"""
+			desc:
+				Sets the most recently recorded pupil size, and estimate a new
+				likelihood value.
+				
+			arguments:
+				pupilSize:		A pupil-size value.
+			"""
+			
+			self.lPrediction.append(self.brightness)
+			if not np.isnan(pupilSize):
+				self.lPupilSize.append(pupilSize)
+			if len(self.lPupilSize) > 1:
+				pupilSizeChange = 1. * self.lPupilSize[-1] / self.lPupilSize[-2]
+				self.lPupilSizeChange.append(pupilSizeChange) 
+				if self.lPrediction[-1] == 1 and self.lPrediction[-2] == -1:
+					likelihood = self.lLikelihood[-1] / pupilSizeChange
+				elif self.lPrediction[-1] == -1 and self.lPrediction[-2] == 1:
+					likelihood = self.lLikelihood[-1] * pupilSizeChange
+				else:
+					likelihood = self.lLikelihood[-1]
+				self.lLikelihood.append(likelihood)
+	
+		def setXY(self, xy):
+			
+			"""
+			desc:
+				Sets the position of the item.
+				
+			arguments:
+				xy:		An xy coordinate tuple.
+			"""
+			
+			self.xy = xy
+			self.stim.pos = xy
+			self.background.pos = xy
+			self.mirror.pos = -xy[0], -xy[1]
+			
+		def show(self, background=True, gazePos=None, cue=False):
+			
+			"""
+			desc:
+				Shows the item.
+				
+			keywords:
+				background:		Indicates whether background patch should be shown
+								as well.
+				gazePos:		An (x,y) tuple with the most recent gaze position,
+								used to perform retinal stabilization.
+				cue:			Indicates whether a cue should be shown.
+			"""
+	
+			if gazePos != None:
+				gx, gy = gazePos
+				gx -= xc
+				gy -= yc
+				self.background.setPos( (self.xy[0]+gx, self.xy[1]-gy) )
+				self.mirror.setPos( (-self.xy[0]+gx, -self.xy[1]-gy) )
+			if background:
+				self.background.draw()
+				if self.showMirror:
+					self.mirror.draw()
+			if cue:
+				self.cue.draw()
+			if hasattr(self.stim, 'setHeight'):
+				try:
+					self.stim.setHeight(
+						int(self.size*self.likelihood()/self.itemArray.meanLikelihood()))
+				except:
+					pass
+			else:
+				try:
+					self.stim.setSize(
+						int(self.imScale*self.size*self.likelihood()/self.itemArray.meanLikelihood()))
+				except:
+					pass
+			self.stim.draw()
+			
+		def focus(self, steps=50):
+			
+			"""
+			desc:
+				Moves the item to the display center, indicating that it has been
+				selected.
+				
+			keywords:
+				steps:		The number of steps of the animation.
+			"""
+			
+			x = np.linspace(self.xy[0], 0, steps)
+			y = np.linspace(self.xy[1], 0, steps)		
+			for i in range(steps):
+				self.background.pos = x[i],y[i]
+				self.stim.pos = x[i],y[i]
+				self.mirror.pos = -x[i],-y[i]
+				self.show()
+				win.flip()
+				
+		def log(self, status='normal'):
+			
+			"""
+			desc:
+				Logs the item information.
+				
+			keywords:
+				status:		The status of the item.
+			"""
+					
+			exp.pygaze_eyetracker.log((u'item id="%s" status=%s likelihood=%s ecc=%s angle=%s '
+				u'size=%s brightness=%s color=%s opacity=%s x=%s y=%s') % (
+				self.itemId, status, self.likelihood(), self.ecc, self.angle,
+				self.size, self.brightness, self.color, self.opacity, self.xy[0],
+				self.xy[1]))
+	__end__
+	set _prepare ""
+
+define inline_script itemArray
+	set description "Class definition"
+	___run__
+	class ItemArray(object):
+		
+		"""
+		desc:
+			An array of selectable items.
+		"""
+		
+		def __init__(self, itemIds, stabilize=False, check=True, ecc=310, size=64,
+			debug=True, bgScale=2, writingIndicator=None):
+			
+			"""
+			desc:
+				Constructor.
+				
+			arguments:
+				itemIds:	A list of item-id strings. There should be an even
+							number of elements.
+			
+			keywords:
+				stabilize:	Indicates whether retinal stabilization should be
+							enabled.
+				check:		Indicates whether the trial should be paused when
+							fixation is lost.
+				ecc:		The items' eccentricity.
+				size:		The items' size.
+				debug:		Indicates whether debugging info should be shown.
+				bgScale:	See item.
+				writingIndicator:
+							Indicates whether an indicator of the free-written
+							text should be shown.
+			"""
+			
+			if len(itemIds) not in [2, 4, 8, 16, 32]:
+				raise Exception('Expecting a power-of-two number of item IDs')
+			self.items = []
+			self.stabilize = stabilize
+			self.check = check
+			self.ecc = ecc
+			self.size = size		
+			self.debug = debug
+			brightness = random.choice([1,-1])
+			self.thresholdValue = 2.0
+			if len(itemIds) == 4:
+				angle = -.25*np.pi
+			else:
+				angle = 0
+			for itemId in itemIds:			
+				self.items.append(Item(self, itemId=itemId, angle=angle,
+					ecc=ecc, brightness=brightness, size=size, bgScale=bgScale))
+				brightness *= -1
+				angle += 2*np.pi/len(itemIds)
+			self.fixDot = GratingStim(win, tex=None, mask='circle', color='green',
+				size=8)
+			self.pupilSizeIndicator = TextStim(win, '-', pos=(xc-50, yc-20),
+				color='black')
+			if writingIndicator not in [None, '']:
+				self.writingIndicator = TextStim(win, '"%s"' % writingIndicator,
+					pos=(0, 20), color='green')
+			else:
+				self.writingIndicator = None
+			self.pause = TextStim(win, 'Fixation lost')
+				
+		def show(self, background=True, cue=None):
+			
+			"""
+			desc:
+				Shows the ItemArray.
+				
+			keywords:
+				background:		Indicates whether the backgrounds of the items
+								should be shown as well.
+				cue:			Indicates the item that should be cued, or None.
+			"""
+					
+			if self.check:
+				nErr = 0
+				while True:
+					gx, gy = eyetracker.sample()				
+					gx -= xc
+					gy -= yc
+					err = np.sqrt(gx**2+gy**2)
+					if err <= 100:
+						break
+					nErr += 1
+					if nErr > 10:
+						eyetracker.log('pause fixation_lost')
+						self.pause.draw()
+						win.flip()
+						my_keyboard.flush()					
+			if self.stabilize:
+				gazePos = gx+xc, gy+yc
+			else:
+				gazePos = None
+			for item in self.items:			
+				if item.itemId == cue:
+					showCue = True
+				else:
+					showCue = False
+				item.show(background=background, gazePos=gazePos, cue=showCue)
+			self.fixDot.draw()
+			if self.debug:
+				self.pupilSizeIndicator.draw()
+			if self.writingIndicator != None:
+				self.writingIndicator.draw()
+	#		if var.staircase != 'no':
+	#			TextStim(win, '%.4f' % var.likelihoodThr).draw()
+	#			print('Threshold: ', var.likelihoodThr, 'Quest value:', var.questStaircaseValue)
+	#		else:
+	#			TextStim(win, '%.4f' % var.localLikelihoodThr).draw()
+			win.flip()
+			
+		def meanLikelihood(self):
+			
+			"""
+			returns:
+				The mean likelihood of all items.
+			"""
+			
+			return np.nanmean([item.likelihood() for item in self.items])
+			
+		def invert(self, dur=500):
+			
+			"""
+			desc:
+				Inverts the brightness of all items.
+				
+			keywords:
+				steps:	The duration of the inversion animation.
+			"""
+			
+			f = np.linspace(1, -1, dur)
+			oldBrightness = np.array([item.brightness for item in self.items])
+			t0 = exp.time()
+			i = 0
+			while i < dur:			
+				n = 0			
+				for item in self.items:
+					item.setBrightness(oldBrightness[n] * f[i])
+					n += 1
+				#print 'i = %s' % i
+				self.show()
+				t1 = exp.time()
+				i = int(t1-t0)
+			n = 0
+			for item in self.items:
+				item.setBrightness(oldBrightness[n] * f[-1])
+				n += 1
+				
+		def setMode2(self, mode2, steps=50):
+			
+			"""
+			desc:
+				See mode2 description in __init__().
+				
+			arguments:
+				mode2:	See __init__().
+			"""
+			
+			mode2 = str(mode2)
+			assert(mode2 in ['180', '90up', '90down', '90upmirror', '90downmirror'])
+			if len(self.items) != 2 or mode2 == '180':
+				return
+			if '90down' in mode2:
+				# If item 0 is closer to the -.25pi angle than item 1
+				if np.abs(self.items[0].angle+.25*np.pi) < \
+					np.abs(self.items[1].angle+.25*np.pi):			
+					a0 = -.25 * np.pi
+					a1 = -.75 * np.pi
+				else:
+					a0 = -.75 * np.pi
+					a1 = -.25 * np.pi				
+			elif '90up' in mode2:
+				# If item 0 is closer to the .25pi angle than item 1
+				if np.abs(self.items[0].angle-.25*np.pi) < \
+					np.abs(self.items[1].angle-.25*np.pi):			
+					a0 = .25 * np.pi
+					a1 = .75 * np.pi
+				else:
+					a0 = .75 * np.pi
+					a1 = .25 * np.pi				
+			if steps > 0:
+				x0 = self.items[0].ecc*np.cos(a0)
+				y0 = self.items[0].ecc*np.sin(a0)
+				x1 = self.items[1].ecc*np.cos(a1)
+				y1 = self.items[1].ecc*np.sin(a1)
+				traceX0 = np.linspace(self.items[0].xy[0], x0, steps)
+				traceY0 = np.linspace(self.items[0].xy[1], y0, steps)
+				traceX1 = np.linspace(self.items[1].xy[0], x1, steps)
+				traceY1 = np.linspace(self.items[1].xy[1], y1, steps)
+				for i in range(steps):
+					self.items[0].setXY((traceX0[i], traceY0[i]))
+					self.items[1].setXY((traceX1[i], traceY1[i]))
+					self.show()
+			self.items[0].setAngle(a0)
+			self.items[1].setAngle(a1)				
+			if 'mirror' in mode2:
+				self.items[0].showMirror = True
+				self.items[1].showMirror = True
+				
+		def localThreshold(self, thresholdValue = 1.5):
+			"""
+			Gets one of the adaptive algorithms and retuns the new threshold value. 
+			"""
+			if var.trialThreshold != 'no' and var.practiceMode == 'no':
+				if var.trialThresholdOption == 1:
+					return self.varianceThr(thresholdValue)
+				elif var.trialThresholdOption == 2:
+					return self.consistencyThr(thresholdValue)
+				else:
+					return 1.5
+			else:
+				return 1.5
+				
+		def varianceThr(self, thresholdValue):		
+			"""
+			Calculates a new threshold value based on the variance of the pupil
+			size changes.
+			
+			If there is too much variance, the threshold level will be lowered.
+			
+			If the data is consistent, the threshold level will be increased.
+			"""
+				
+			if len(self.lPupilSizeChange) > 3: # Arbitrary
+				if np.std(self.lPupilSizeChange) >= np.mean(self.lPupilSizeChange)**2:
+					thresholdValue /= 0.85
+				elif np.std(self.lPupilSizeChange) <= np.sqrt(np.mean(self.lPupilSizeChange)):
+					thresholdValue *= 0.85
+				else:
+					pass
+			if thresholdValue <= 1:
+				thresholdValue = 1
+			return thresholdValue
+				
+		def consistencyThr(self, thresholdValue):
+			
+			"""
+			Observes if the pupil size changes are consistent.
+			Ie. If the pupil size keeps alternating between dilation and contraction
+			for every reading, the threshold level will be lowered.
+			If, alternatively, these changes are not consistent, the threshold level
+			will be increased.
+			"""
+	
+			if len(self.lPupilSizeChange) >= 3:
+				a = np.array(self.lPupilSizeChange[-3:])
+				d = a[1:]-a[:-1]
+				if np.prod(d) < 0:
+					print(a, d, 'down', thresholdValue)				
+					thresholdValue *= .9
+				else:
+					print(a, d, 'up', thresholdValue)
+					thresholdValue /= .9		
+			if thresholdValue <= 1:
+				thresholdValue = 1
+			return thresholdValue	
+		
+		def selectionLoop(self, initialSleep=1000, invertSteps=500, adaptDur=500,
+			collectDur=250, target=None, mode2='180', likelihoodThr = 2.0,
+			cue=None):
+			
+			"""
+			desc:
+				Starts the selection loop, which ends when only one item is left.
+				
+			keywords:
+				initialSleep:	The initial sleep duration.
+				invertStep:		The number of franes for the invert animation.
+				adaptDur:		The duration of the adaptation period.
+				collectDur:		The duration of the pupil-size-collection period.
+				target:			The target to be selected.
+				mode2:			Indicates the mode of the final selection round, in
+								which only two items are left. Should be '180',
+								'90up', '90down', '90upmirror', or '90downmirror'.
+				likelihoodThr:	The likelihood-ratio threshold. If 2, this means
+								that items are pruned when their likelihood is less
+								than 2 times the mean likelihood.
+				cue:			Indicates the item that should be cued, or None to
+								cue no items.
+				
+			returns:
+				An (item, rounds) tuple containing the winning item and the number
+				of rounds that the selection loop took.
+			"""
+			
+			self.setMode2(mode2, steps=0)
+			eyetracker.log('start_selection_loop')
+			eyetracker.log('var target %s' % target)		
+			eyetracker.log('var mode2 %s' % mode2)
+			eyetracker.log('var stabilize %s' % self.stabilize)
+			for item in self.items:
+				item.log(status='init')		
+			rounds = 0
+			self.show(background=False, cue=cue)
+			exp.sleep(initialSleep)
+			self.show()
+			collectPupilTrace(self, initialSleep)
+			self.lPupilSizeChange = []
+			
+			while True:				
+				eyetracker.log('start_round %d' % rounds)			
+				eyetracker.log('start_invert')
+				self.invert(dur=invertSteps)
+				eyetracker.log('end_invert')
+				eyetracker.log('start_adaptation')
+				collectPupilTrace(self, adaptDur)
+				eyetracker.log('end_adaptation')
+				eyetracker.log('start_collection')
+				a = collectPupilTrace(self, collectDur)
+				eyetracker.log('end_collection')
+				meanPupilSize = np.median(a)
+				self.lPupilSizeChange.append(meanPupilSize)
+				
+				likelihoodThr = self.likelihoodThr = self.localThreshold(likelihoodThr)
+				var.localLikelihoodThr = self.likelihoodThr # For logging
+				
+				if var.staircase != 'no':
+					self.likelihoodThr =  var.likelihoodThr
+				
+				print('likelihoodThr:', self.likelihoodThr)
+				
+				self.pupilSizeIndicator.setText(str(meanPupilSize))
+				for item in self.items:
+					item.setPupilSize(meanPupilSize)				
+				_items = []
+				prune = False
+							
+				for item in self.items:
+					if item.likelihood()*self.likelihoodThr >= self.meanLikelihood():
+						item.log(status='keep')
+						_items.append(item)
+					else:
+						item.log(status='prune')
+						prune = True					
+				self.items = _items			
+				if prune:
+					eyetracker.log('prune yes')
+					self.setMode2(mode2)
+					# Reshuffle the brightness of the items, but only if there are
+					# still more than two items left. Otherwise we may change the
+					# brightness of the winning item, which looks weird.
+					if len(self.items) > 1:
+						brightness = random.choice([1,-1])
+						for item in self.items:
+							item.setBrightness(brightness)
+							brightness *= -1
+				else:
+					eyetracker.log('prune no')
+				eyetracker.log('end_round')
+				rounds += 1
+				# Break if the target has been eliminated, if a target was specified
+				if target != None:
+					hit = False
+					for item in self.items:
+						if item.itemId == target:
+							hit = True
+					if not hit:
+						break
+				if len(self.items) == 1:
+					break								
+			if len(self.items) > 1:
+				exp.set('correct_selection', 0)
+				Item(self, '?', 0, self.ecc).focus()
+				winner = None
+			else:
+				winner = self.items[0]
+				winner.log(status='winner')
+				winner.focus()
+				if target == None:
+					exp.set('correct_selection', -1)
+				else:
+					if winner.itemId == target:
+						exp.set('correct_selection', 1)
+						
+					else:
+						exp.set('correct_selection', 0)
+			eyetracker.log('var rounds %d' % rounds)
+			eyetracker.log('end_selection_loop')
+			if var.practiceMode == 'no':
+				if var.trialCounter < var.numberOfTrials:
+					var.trialCounter += 1
+				else:
+					var.trialCounter = 1
+					if var.blockID < 3:
+						var.blockID += 1
+					else:
+						var.blockID = 0
+					var.blockCounter += 1
+				print('Trial: %s, block ID: %s, block Counter: %s') % (var.trialCounter, var.blockID, var.blockCounter)
+			return winner, rounds
+	__end__
+	set _prepare ""
+
+define keyboard_response keyboard_response
+	set timeout infinite
+	set flush yes
+	set duration keypress
+	set description "Collects keyboard responses"
+	set allowed_responses q
+
+define logger logger
+	set description "Logs experimental data"
+	set auto_log yes
+
+define quest_staircase_init new_quest_staircase_init
+	set var_test_value questStaircaseValue
+	set test_value_method quantile
+	set t_guess_sd 0.25
+	set t_guess 0.1
+	set p_threshold 0.8
+	set min_test_value 0
+	set max_test_value 1
+	set gamma 0.5
+	set description "Initializes a new Quest staircase procedure"
+	set delta 0.01
+	set beta 3.5
+
+define quest_staircase_next new_quest_staircase_next_1
+	set response_var correct_selection
+	set description "Updates the Quest test value based on a response"
+
+define pygaze_init pygaze_init
+	set tracker_type EyeTribe
+	set smi_send_port 4444
+	set smi_recv_port 5555
+	set smi_ip "127.0.0.1"
+	set sacc_vel_thr 35
+	set sacc_acc_thr 9500
+	set eyelink_pupil_size_mode area
+	set eyelink_force_drift_correct yes
+	set eyelink_calbeep yes
+	set description "Initialize and calibrate eye tracker"
+	set calibrate yes
+	set calbeep yes
+	set _logfile automatic
+
+define pygaze_log pygaze_log
+	set throttle 2
+	set msg ""
+	set description "Writes information to the eye-tracker logfile"
+	set auto_log yes
+
+define pygaze_start_recording pygaze_start_recording
+	set status_msg "start_trial [count_exp_sequence]"
+	set description "Puts the eye tracker into recording mode"
+
+define pygaze_stop_recording pygaze_stop_recording
+	set status_msg stop_trial
+	set description "Stops recording of eye tracking data"
+
+define sequence python_definitions
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run default_settings always
+	run globals always
+	run speech always
+	run smoothing always
+	run experiment_settings always
+	run item always
+	run itemArray always
+	run eye_tracker always
+	run get_input always
+
+define inline_script select_target
+	set description "Executes Python code"
+	___run__
+	# Block properties
+	if var.blockID == 0:
+		var.staircase = 'yes'
+		var.trialThreshold = 'no'
+		var.trialThresholdOption = 0
+	elif var.blockID == 1:
+		var.staircase = 'no'
+		var.trialThreshold = 'yes'
+		var.trialThresholdOption = 1
+	elif var.blockID == 2:
+		var.staircase = 'no'
+		var.trialThreshold = 'yes'
+		var.trialThresholdOption = 2
+	else:
+		var.staircase = 'no'
+		var.trialThreshold = 'yes'
+		var.trialThresholdOption = 3
+		
+	# Staircase properties
+	
+	if var.staircase != 'no' and var.practiceMode == 'no': 
+		var.likelihoodThr = var.questStaircaseValue * 10 + 1
+	else:
+		var.likelihoodThr = 1.5
+		
+	# Original code	
+	
+	if var.showCue == 'yes':
+		cue = var.target
+	else:
+		cue = None
+	if var.stabilize != 'no':
+		stabilize = True
+	else:
+		stabilize = False
+	if var.checkFix != 'no':
+		checkFix = True
+	else:
+		checkFix = False
+	ia = ItemArray(list(var.itemIds),
+		ecc=var.ecc,
+		size=var.size,
+		stabilize=stabilize,
+		check=checkFix
+		)
+	items = ia.items[:]
+	t0 = clock.time()
+	winner, rounds = ia.selectionLoop(
+		target=var.target,
+		mode2=var.mode2,
+		likelihoodThr=var.likelihoodThr,
+		cue=cue
+		)
+	t1 = clock.time()
+	rt = .001 * (t1-t0)
+	var.winner = winner
+	var.rounds = rounds
+	var.loop_rt = rt
+	set_response(response=winner, response_time=rt, correct=var.correct_selection)
+	clock.sleep(2)
+	__end__
+	set _prepare ""
+
+define sketchpad sketchpad
+	set reset_variables no
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=1 color=green font_bold=no font_family=mono font_italic=no font_size=32 html=yes show_if=always text=Select x=0 y=-288 z_index=0
+	draw textline center=1 color=green font_bold=no font_family=mono font_italic=no font_size=32 html=yes show_if=always text="Press a key to continue" x=0 y=320 z_index=0
+	draw image center=1 file="[target].png" scale=1 show_if=always x=0 y=0 z_index=0
+
+define inline_script smoothing
+	set description "Executes Python code"
+	___run__
+	import numpy
+	
+	def smooth(x, window_len=11, window='hanning'):
+		"""
+		desc:
+			Smooths an array using a window with requested size and shape.
+			
+		source:
+			<http://wiki.scipy.org/Cookbook/SignalSmooth>
+		
+		arguments:
+			x:				The input array.
+			
+		keywords:
+			window_len: 	The length of the window. Should be an odd integer.
+			window:			The type of window from 'flat', 'hanning', 'hamming',
+							'bartlett', 'blackman'.
+	
+		returns:
+			A smoothed array.		
+		"""
+	
+		if x.ndim != 1:
+			raise ValueError, "smooth only accepts 1 dimension arrays."
+		if x.size < window_len:
+			raise ValueError, "Input vector needs to be bigger than window size."
+		if window_len<3:
+			return x
+		if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+			raise ValueError, "Window is on of 'flat', 'hanning', 'hamming','bartlett', 'blackman'"
+		s=numpy.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
+		if window == 'flat': #moving average
+			w=numpy.ones(window_len,'d')
+		else:
+			w=eval('numpy.'+window+'(window_len)')
+		y=numpy.convolve(w/w.sum(),s,mode='valid')
+		return y
+	__end__
+	set _prepare ""
+
+define inline_script speak_target
+	set description "Executes Python code"
+	___run__
+	say(u'Select %s' % var.target)
+	__end__
+	set _prepare ""
+
+define inline_script speech
+	set description "Executes Python code"
+	___run__
+	def say(msg):
+		
+		"""
+		desc:
+			Speak a message with the espeak synthesizer (if available).
+			
+		arguments:
+			msg:	The message to speak.
+		"""
+		
+		try:
+			subprocess.Popen(['espeak', '-s', '140', msg])
+		except:
+			print('Text synthesis not available!')
+	__end__
+	set _prepare ""
+
+define inline_script startup_variables
+	set description "Executes Python code"
+	___run__
+	var.stabilize = 'no'
+	var.checkFix = 'no'
+	var.total_responses = 0
+	__end__
+	set _prepare ""
+
+define loop two_options
+	set source_file ""
+	set source table
+	set skip 0
+	set repeat 4
+	set order random
+	set offset no
+	set item exp_sequence
+	set description "Repeatedly runs another item"
+	set cycles 4
+	set continuous no
+	set column_order "target;itemIds"
+	set break_if_on_first yes
+	set break_if never
+	setcycle 0 target A
+	setcycle 0 itemIds AB
+	setcycle 1 target A
+	setcycle 1 itemIds BA
+	setcycle 2 target B
+	setcycle 2 itemIds AB
+	setcycle 3 target B
+	setcycle 3 itemIds BA
+	run exp_sequence
+
+>>>>>>> origin/erredece
