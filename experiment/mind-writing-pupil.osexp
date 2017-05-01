@@ -81,10 +81,10 @@ define inline_script default_settings
 	var.staircase = 'yes'
 	var.trialThreshold = 'yes'
 	var.trialThresholdOption = 0
-	var.localLikelihoodThr = 2 # Used for logging
 	__end__
 
 define loop eight_options
+	set source_file ""
 	set source table
 	set skip 0
 	set repeat 30
@@ -157,8 +157,6 @@ define inline_script experiment_settings
 	else:
 		var.blockID = 3
 		var.blockOrder = 3
-	
-	print(var.subject_nr % 4)
 	__end__
 	set _prepare ""
 
@@ -694,7 +692,7 @@ define inline_script itemArray
 			self.size = size		
 			self.debug = debug
 			brightness = random.choice([1,-1])
-			self.thresholdValue = 2.0
+			self.thresholdValue = 1.5
 			if len(itemIds) == 4:
 				angle = -.25*np.pi
 			else:
@@ -757,6 +755,10 @@ define inline_script itemArray
 				self.pupilSizeIndicator.draw()
 			if self.writingIndicator != None:
 				self.writingIndicator.draw()
+	#		TextStim(win, '%.4f' % var.likelihoodThr).draw()
+	#			print('Threshold: ', var.likelihoodThr, 'Quest value:', var.questStaircaseValue)
+	#		else:
+	#			TextStim(win, '%.4f' % var.localLikelihoodThr).draw()
 			win.flip()
 			
 		def meanLikelihood(self):
@@ -847,39 +849,19 @@ define inline_script itemArray
 				self.items[0].showMirror = True
 				self.items[1].showMirror = True
 				
-		def localThreshold(self, thresholdValue = 2):
+		def localThreshold(self, thresholdValue = 1.5):
 			"""
 			Gets one of the adaptive algorithms and retuns the new threshold value. 
 			"""
-			if var.trialThreshold != 'no':
-				if var.trialThresholdOption == 1: 
-					return self.minMaxThr(thresholdValue)
-				elif var.trialThresholdOption == 2:
+			if var.trialThreshold != 'no' and var.practiceMode == 'no':
+				if var.trialThresholdOption == 1:
 					return self.varianceThr(thresholdValue)
-				elif var.trialThresholdOption == 3:
+				elif var.trialThresholdOption == 2:
 					return self.consistencyThr(thresholdValue)
 				else:
-					return 2
+					return 1.5
 			else:
-				return 2
-				
-		def minMaxThr(self, thresholdValue):
-			"""
-			Calculates a new threshold value based on the difference between the 
-			last pupil sizes.
-			"""
-			
-			if len(self.lPupilSizeChange) > 2:
-				pupilSizeDifference =  abs(self.lPupilSizeChange[-2] - self.lPupilSizeChange[-1])
-				if pupilSizeDifference >= 0.1:
-					thresholdValue *= 0.9
-				elif pupilSizeDifference <= 0.025:
-					thresholdValue /= 0.9
-				else:
-					pass		
-			if thresholdValue <= 1:
-				thresholdValue = 1
-			return thresholdValue
+				return 1.5
 				
 		def varianceThr(self, thresholdValue):		
 			"""
@@ -891,11 +873,11 @@ define inline_script itemArray
 			If the data is consistent, the threshold level will be increased.
 			"""
 				
-			if len(self.lPupilSizeChange) > 3: # Arbitrary
+			if len(self.lPupilSizeChange) > 3: 
 				if np.std(self.lPupilSizeChange) >= np.mean(self.lPupilSizeChange)**2:
-					thresholdValue /= 0.75
+					thresholdValue /= 0.85
 				elif np.std(self.lPupilSizeChange) <= np.sqrt(np.mean(self.lPupilSizeChange)):
-					thresholdValue *= 0.75
+					thresholdValue *= 0.85
 				else:
 					pass
 			if thresholdValue <= 1:
@@ -911,18 +893,22 @@ define inline_script itemArray
 			If, alternatively, these changes are not consistent, the threshold level
 			will be increased.
 			"""
-			
-			if len(self.lPupilSizeChange) >= 4:
-				if (self.lPupilSizeChange[-4] > self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] < self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] > self.lPupilSizeChange[-1]) or (self.lPupilSizeChange[-4] < self.lPupilSizeChange[-3] and self.lPupilSizeChange[-3] > self.lPupilSizeChange[-2] and self.lPupilSizeChange[-2] < self.lPupilSizeChange[-1]): # This needs some obvious optimization...
-					thresholdValue -= .25
+	
+			if len(self.lPupilSizeChange) >= 3:
+				a = np.array(self.lPupilSizeChange[-3:])
+				d = a[1:]-a[:-1]
+				if np.prod(d) < 0:
+					print(a, d, 'down', thresholdValue)				
+					thresholdValue *= .9
 				else:
-					thresholdValue += .25
+					print(a, d, 'up', thresholdValue)
+					thresholdValue /= .9		
 			if thresholdValue <= 1:
 				thresholdValue = 1
 			return thresholdValue	
 		
 		def selectionLoop(self, initialSleep=1000, invertSteps=500, adaptDur=500,
-			collectDur=250, target=None, mode2='180', likelihoodThr = 2.0,
+			collectDur=250, target=None, mode2='180', likelihoodThr = 1.5,
 			cue=None):
 			
 			"""
@@ -938,9 +924,9 @@ define inline_script itemArray
 				mode2:			Indicates the mode of the final selection round, in
 								which only two items are left. Should be '180',
 								'90up', '90down', '90upmirror', or '90downmirror'.
-				likelihoodThr:	The likelihood-ratio threshold. If 2, this means
+				likelihoodThr:	The likelihood-ratio threshold. If 1.5, this means
 								that items are pruned when their likelihood is less
-								than 2 times the mean likelihood.
+								than 1.5 times the mean likelihood.
 				cue:			Indicates the item that should be cued, or None to
 								cue no items.
 				
@@ -977,8 +963,13 @@ define inline_script itemArray
 				meanPupilSize = np.median(a)
 				self.lPupilSizeChange.append(meanPupilSize)
 				
-				self.likelihoodThr = self.localThreshold(likelihoodThr)
-				var.localLikelihoodThr = self.likelihoodThr # For logging
+				
+				if var.staircase == 'no':
+					likelihoodThr = var.likelihoodThr = self.localThreshold(likelihoodThr)
+	
+				
+				print('likelihoodThr:', var.likelihoodThr)
+				
 				self.pupilSizeIndicator.setText(str(meanPupilSize))
 				for item in self.items:
 					item.setPupilSize(meanPupilSize)				
@@ -986,7 +977,7 @@ define inline_script itemArray
 				prune = False
 							
 				for item in self.items:
-					if item.likelihood()*self.likelihoodThr >= self.meanLikelihood():
+					if item.likelihood()*var.likelihoodThr >= self.meanLikelihood():
 						item.log(status='keep')
 						_items.append(item)
 					else:
@@ -1040,6 +1031,7 @@ define inline_script itemArray
 				if var.trialCounter < var.numberOfTrials:
 					var.trialCounter += 1
 				else:
+					var.questStaircaseValue = 0.1
 					var.trialCounter = 1
 					if var.blockID < 3:
 						var.blockID += 1
@@ -1065,11 +1057,11 @@ define logger logger
 define quest_staircase_init new_quest_staircase_init
 	set var_test_value questStaircaseValue
 	set test_value_method quantile
-	set t_guess_sd 0.25
+	set t_guess_sd 0.025
 	set t_guess 0.1
-	set p_threshold 0.75
+	set p_threshold 0.8
 	set min_test_value 0
-	set max_test_value 1
+	set max_test_value 0.2
 	set gamma 0.5
 	set description "Initializes a new Quest staircase procedure"
 	set delta 0.01
@@ -1090,7 +1082,7 @@ define pygaze_init pygaze_init
 	set eyelink_force_drift_correct yes
 	set eyelink_calbeep yes
 	set description "Initialize and calibrate eye tracker"
-	set calibrate yes
+	set calibrate no
 	set calbeep yes
 	set _logfile automatic
 
@@ -1147,7 +1139,7 @@ define inline_script select_target
 	if var.staircase != 'no' and var.practiceMode == 'no': 
 		var.likelihoodThr = var.questStaircaseValue * 10 + 1
 	else:
-		var.likelihoodThr = 2
+		var.likelihoodThr = 1.5
 		
 	# Original code	
 	
