@@ -71,7 +71,7 @@ define inline_script default_settings
 	var.blockOrder = 0
 	var.blockCounter = 0
 	var.trialCounter = 1
-	var.numberOfTrials = 30
+	var.numberOfTrials = 20
 	
 	# Adaptive threshold settings.
 	var.staircase = 'yes'
@@ -83,7 +83,7 @@ define loop eight_options
 	set source_file ""
 	set source table
 	set skip 0
-	set repeat 30
+	set repeat 20
 	set order random
 	set offset no
 	set item exp_sequence
@@ -118,7 +118,7 @@ define sequence exp_sequence
 	run speak_target always
 	run sketchpad always
 	run select_target always
-	run new_quest_staircase_next_1 always
+	run new_quest_staircase_next_1 "[staircase] != no' and [practiceMode] == 'no' "
 	run feedback always
 	run blank always
 	run pygaze_log always
@@ -214,7 +214,7 @@ define feedback final_feedback
 	set duration keypress
 	set description "Provides feedback to the participant"
 	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="<b>That is the end of the experiment</b><br /><br />Accuracy: [acc] %<br />Average response time: [avg_rt] s<br /><br />You may now call the researcher." x=0 y=0 z_index=0
-	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=always text="Appuyez 'q' pour quitter." x=0 y=448 z_index=0
+	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=always text="Press 'q' to exit." x=0 y=448 z_index=0
 	draw textline center=1 color=green font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=always text="" x=-64 y=-96 z_index=0
 
 define form_base form_base
@@ -945,7 +945,6 @@ define inline_script itemArray
 				if var.trialCounter < var.numberOfTrials:
 					var.trialCounter += 1
 				else:
-					var.questStaircaseValue = 0.1
 					var.trialCounter = 1
 					if var.blockID < 3:
 						var.blockID += 1
@@ -972,7 +971,7 @@ define quest_staircase_init new_quest_staircase_init
 	set var_test_value questStaircaseValue
 	set test_value_method quantile
 	set t_guess_sd 0.025
-	set t_guess 0.1
+	set t_guess 0.05
 	set p_threshold 0.8
 	set min_test_value 0
 	set max_test_value 0.2
