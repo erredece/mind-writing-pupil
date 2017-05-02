@@ -29,7 +29,7 @@ set font_size 18
 set font_italic no
 set font_family mono
 set font_bold no
-set experiment_path "C:/Users/Roberto/Documents/GitHub/mind-writing-pupil/experiment"
+set experiment_path "C:\\Users\\user\\Desktop\\BCI experiment - Roberto de Cecilio\\experiment"
 set disable_garbage_collection yes
 set description "A brain-computer interface based on covert attention and pupillometry"
 set coordinates relative
@@ -817,6 +817,8 @@ define inline_script itemArray
 					thresholdValue /= .9		
 			if thresholdValue <= 1:
 				thresholdValue = 1
+			if thresholdValue >= 2.5:
+				thresholdValue = 2.5
 			return thresholdValue	
 		
 		def selectionLoop(self, initialSleep=1000, invertSteps=500, adaptDur=500,
